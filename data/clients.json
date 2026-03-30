@@ -1,0 +1,31 @@
+[
+  {
+    "id": "oneonethree",
+    "name": "OneOneThree Digital",
+    "domain": "oneonethree.co.nz",
+    "password": "oot2025",
+    "githubRepo": "cambrewitt-ship-it/oneonethree-website",
+    "githubBranch": "main",
+    "pages": [
+      { "label": "Home", "filename": "index.html" },
+      { "label": "Services", "filename": "services.html" },
+      { "label": "About", "filename": "about.html" },
+      { "label": "Product", "filename": "product.html" },
+      { "label": "Contact", "filename": "contact.html" },
+      { "label": "Google Tags", "filename": "google-tags.html" }
+    ]
+  },
+  {
+    "id": "wellington-plumbing",
+    "name": "Wellington Plumbing Co.",
+    "domain": "wellingtonplumbing.co.nz",
+    "password": "plumbing2025",
+    "githubRepo": "oneone113/wellington-plumbing",
+    "githubBranch": "main",
+    "pages": [
+      { "label": "Home", "filename": "index.html" },
+      { "label": "Services", "filename": "services.html" },
+      { "label": "Contact", "filename": "contact.html" }
+    ]
+  }
+]
