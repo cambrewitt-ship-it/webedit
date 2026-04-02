@@ -2,8 +2,9 @@
 
 import { useRef, useEffect, useState } from "react";
 import MessageBubble, { TypingIndicator, Message } from "./MessageBubble";
-import { Send, Camera, X, ChevronDown } from "lucide-react";
+import { Send, Camera, X, ChevronDown, MousePointer } from "lucide-react";
 import { Page } from "@/config/clients";
+import { SelectedElement } from "./PreviewPanel";
 
 const SUGGESTION_CHIPS = [
   "Change phone number",
@@ -23,6 +24,8 @@ interface ChatPanelProps {
   messages: Message[];
   isLoading: boolean;
   uploadedImage: UploadedImage | null;
+  selectedElement: SelectedElement | null;
+  pickerMode: boolean;
   activePageLabel?: string;
   pages?: Page[];
   activePage?: string;
@@ -30,6 +33,8 @@ interface ChatPanelProps {
   onSendMessage: (text: string) => void;
   onImageUpload: (image: UploadedImage) => void;
   onImageRemove: () => void;
+  onClearElement: () => void;
+  onTogglePicker: () => void;
 }
 
 export default function ChatPanel({
@@ -37,6 +42,8 @@ export default function ChatPanel({
   messages,
   isLoading,
   uploadedImage,
+  selectedElement,
+  pickerMode,
   activePageLabel,
   pages,
   activePage,
@@ -44,6 +51,8 @@ export default function ChatPanel({
   onSendMessage,
   onImageUpload,
   onImageRemove,
+  onClearElement,
+  onTogglePicker,
 }: ChatPanelProps) {
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -132,13 +141,27 @@ export default function ChatPanel({
         <p className="text-xs text-gray-500 mt-0.5">
           Tell me what to change in plain English
         </p>
+
+        {/* Select Area button */}
+        {!isPlaceholder && (
+          <button
+            onClick={onTogglePicker}
+            className={`mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all cursor-pointer border-2 ${
+              pickerMode
+                ? "border-blue-500 bg-blue-500 text-white shadow-md"
+                : "border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white"
+            }`}
+          >
+            <MousePointer size={15} />
+            {pickerMode ? "Picking… click an element" : "Select Area to Edit"}
+          </button>
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {!hasMessages && (
           <div className="text-center py-6">
-            <div className="text-4xl mb-3">{isPlaceholder ? "📂" : "✏️"}</div>
             <p className="text-sm text-gray-500 leading-relaxed">
               {isPlaceholder
                 ? "Upload your HTML file on the right to get started."
@@ -170,6 +193,25 @@ export default function ChatPanel({
               {chip}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Selected element chip */}
+      {selectedElement && (
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+            <MousePointer size={13} className="text-blue-500 flex-shrink-0" />
+            <span className="text-xs text-blue-700 flex-1 truncate font-mono">
+              {selectedElement.label}
+            </span>
+            <button
+              onClick={onClearElement}
+              className="text-blue-400 hover:text-blue-600 cursor-pointer flex-shrink-0"
+              title="Clear selection"
+            >
+              <X size={13} />
+            </button>
+          </div>
         </div>
       )}
 

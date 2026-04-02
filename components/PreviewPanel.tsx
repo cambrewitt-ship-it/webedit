@@ -10,15 +10,23 @@ interface PushStep {
   done: boolean;
 }
 
+export interface SelectedElement {
+  outerHTML: string;
+  selector: string;
+  label: string;
+}
+
 interface PreviewPanelProps {
   html: string;
   isPlaceholder: boolean;
   domain: string;
   pages: Page[];
   activePage: string;
+  pickerMode: boolean;
   onPageChange: (filename: string) => void;
   onFileUpload: (file: File) => void;
   onClear: () => void;
+  onElementSelect: (el: SelectedElement) => void;
   isPushing: boolean;
   pushSteps: PushStep[];
   pushSuccess: boolean;
@@ -26,15 +34,102 @@ interface PreviewPanelProps {
   isLoading: boolean;
 }
 
+// Picker script injected into the iframe — highlights hovered elements and
+// postMessages the selected element back to the parent on click.
+const PICKER_SCRIPT = `
+<script id="__webedit_picker__">
+(function(){
+  var pickerActive = false;
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;pointer-events:none;border:2px solid #3b82f6;background:rgba(59,130,246,0.08);z-index:2147483647;border-radius:2px;box-sizing:border-box;display:none;';
+
+  var badge = document.createElement('div');
+  badge.style.cssText = 'position:fixed;pointer-events:none;background:#3b82f6;color:#fff;font:bold 11px/1 monospace;padding:3px 8px 4px;border-radius:3px;z-index:2147483647;display:none;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+  function mount() {
+    if (!document.body) return;
+    if (!overlay.parentNode) document.body.appendChild(overlay);
+    if (!badge.parentNode) document.body.appendChild(badge);
+  }
+
+  function ignored(el) {
+    return !el || el === overlay || el === badge || el === document.body || el === document.documentElement;
+  }
+
+  function sel(el) {
+    var s = el.tagName.toLowerCase();
+    if (el.id) { s += '#' + el.id; return s; }
+    if (el.className && typeof el.className === 'string') {
+      var cls = el.className.trim().split(/\\s+/).slice(0,2).join('.');
+      if (cls) s += '.' + cls;
+    }
+    return s;
+  }
+
+  function highlight(el) {
+    if (ignored(el)) { hide(); return; }
+    mount();
+    var r = el.getBoundingClientRect();
+    overlay.style.cssText += ';display:block;top:' + r.top + 'px;left:' + r.left + 'px;width:' + r.width + 'px;height:' + r.height + 'px;';
+    overlay.style.display = 'block';
+    overlay.style.top = r.top + 'px';
+    overlay.style.left = r.left + 'px';
+    overlay.style.width = r.width + 'px';
+    overlay.style.height = r.height + 'px';
+
+    var s = sel(el);
+    var txt = (el.textContent || '').trim().replace(/\\s+/g,' ').slice(0,40);
+    badge.textContent = txt ? s + ' \u2014 "' + txt + '"' : s;
+    badge.style.display = 'block';
+    badge.style.top = (r.top > 24 ? r.top - 22 : r.bottom + 4) + 'px';
+    badge.style.left = Math.max(4, r.left) + 'px';
+    document.body.style.cursor = 'crosshair';
+  }
+
+  function hide() {
+    overlay.style.display = 'none';
+    badge.style.display = 'none';
+    if (document.body) document.body.style.cursor = '';
+  }
+
+  document.addEventListener('mouseover', function(e) {
+    if (!pickerActive) return;
+    ignored(e.target) ? hide() : highlight(e.target);
+  }, true);
+
+  document.addEventListener('click', function(e) {
+    if (!pickerActive) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var el = e.target;
+    if (ignored(el)) return;
+    var s = sel(el);
+    var txt = (el.textContent || '').trim().replace(/\\s+/g,' ').slice(0,60);
+    window.parent.postMessage({
+      type: 'webedit-select-element',
+      outerHTML: el.outerHTML,
+      selector: s,
+      label: txt ? s + ' \u2014 "' + txt + '"' : s
+    }, '*');
+  }, true);
+
+  window.addEventListener('message', function(e) {
+    if (!e.data) return;
+    if (e.data.type === 'webedit-picker-toggle') {
+      pickerActive = !!e.data.active;
+      if (!pickerActive) hide();
+    }
+  });
+})();
+</script>`;
+
 /**
- * Inject a <base> tag (for asset resolution) and a nav-intercept script
- * that catches all internal link clicks and sends them via postMessage
- * to the parent instead of navigating the iframe.
+ * Inject base tag, nav-intercept script, and element picker script into HTML.
  */
 function injectHelpers(html: string, domain: string): string {
   const baseTag = `<base href="https://${domain}/" target="_self">`;
 
-  // Intercept internal link clicks → postMessage to parent
   const interceptScript = `<script>
 (function(){
   document.addEventListener('click', function(e){
@@ -42,7 +137,6 @@ function injectHelpers(html: string, domain: string): string {
     if(!a) return;
     var href = a.getAttribute('href');
     if(!href) return;
-    // Leave external, anchor, mailto, tel, javascript: links alone
     if(/^(https?:|\/\/|mailto:|tel:|javascript:|#)/.test(href)) return;
     e.preventDefault();
     window.parent.postMessage({type:'webedit-navigate',href:href},'*');
@@ -50,7 +144,7 @@ function injectHelpers(html: string, domain: string): string {
 })();
 </script>`;
 
-  const inject = `\n  ${baseTag}\n  ${interceptScript}`;
+  const inject = `\n  ${baseTag}\n  ${interceptScript}\n  ${PICKER_SCRIPT}`;
   if (/<head[\s>]/i.test(html)) {
     return html.replace(/(<head[^>]*>)/i, `$1${inject}`);
   }
@@ -63,9 +157,11 @@ export default function PreviewPanel({
   domain,
   pages,
   activePage,
+  pickerMode,
   onPageChange,
   onFileUpload,
   onClear,
+  onElementSelect,
   isPushing,
   pushSteps,
   pushSuccess,
@@ -76,7 +172,9 @@ export default function PreviewPanel({
   const [isDragging, setIsDragging] = useState(false);
   const prevHtmlRef = useRef(html);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Flash on HTML update
   useEffect(() => {
     if (html !== prevHtmlRef.current) {
       prevHtmlRef.current = html;
@@ -88,22 +186,55 @@ export default function PreviewPanel({
     }
   }, [html, isPlaceholder]);
 
-  // Listen for nav-intercept messages from the iframe
+  // Toggle picker mode in the iframe
+  useEffect(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "webedit-picker-toggle", active: pickerMode },
+      "*"
+    );
+  }, [pickerMode]);
+
+  // Turn picker off when HTML reloads (iframe remounts)
+  useEffect(() => {
+    if (pickerMode) {
+      // Re-send toggle after iframe reloads
+      const timer = setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "webedit-picker-toggle", active: true },
+          "*"
+        );
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [html]);
+
+  // Listen for messages from the iframe
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
-      if (e.data?.type !== "webedit-navigate") return;
-      const href: string = e.data.href ?? "";
-      // Extract the basename and normalise to a .html filename
-      let target = href.split("/").pop()?.split("?")[0].split("#")[0] ?? "";
-      if (!target || target === "") target = "index.html";
-      if (!/\.html?$/i.test(target)) target += ".html";
-      // Only switch if we actually have that page loaded
-      const match = pages.find((p) => p.filename === target);
-      if (match) onPageChange(match.filename);
+      if (!e.data) return;
+
+      if (e.data.type === "webedit-navigate") {
+        const href: string = e.data.href ?? "";
+        let target = href.split("/").pop()?.split("?")[0].split("#")[0] ?? "";
+        if (!target || target === "") target = "index.html";
+        if (!/\.html?$/i.test(target)) target += ".html";
+        const match = pages.find((p) => p.filename === target);
+        if (match) onPageChange(match.filename);
+        return;
+      }
+
+      if (e.data.type === "webedit-select-element") {
+        onElementSelect({
+          outerHTML: e.data.outerHTML,
+          selector: e.data.selector,
+          label: e.data.label,
+        });
+      }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [pages, onPageChange]);
+  }, [pages, onPageChange, onElementSelect]);
 
   function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -146,7 +277,7 @@ export default function PreviewPanel({
           <span className="text-xs text-gray-600 truncate font-mono">{domain}</span>
         </div>
 
-        {/* Clear button — only when a file is loaded */}
+        {/* Clear button */}
         {!isPlaceholder && (
           <button
             onClick={onClear}
@@ -173,7 +304,7 @@ export default function PreviewPanel({
         </span>
       </div>
 
-      {/* Hidden file input — accepts HTML and ZIP */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -199,6 +330,13 @@ export default function PreviewPanel({
               <Upload size={36} className="mx-auto mb-3 text-[#113D79]" />
               <p className="font-semibold text-[#113D79]">Drop your file here</p>
             </div>
+          </div>
+        )}
+
+        {/* Picker mode hint */}
+        {pickerMode && !isPlaceholder && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg pointer-events-none whitespace-nowrap">
+            Hover to highlight · Click to select
           </div>
         )}
 
@@ -230,6 +368,7 @@ export default function PreviewPanel({
           </div>
         ) : !isPlaceholder ? (
           <iframe
+            ref={iframeRef}
             srcDoc={previewHtml}
             className="w-full h-full border-0"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
@@ -256,14 +395,18 @@ export default function PreviewPanel({
             <div className="text-center max-w-xs px-6">
               {pushError ? (
                 <>
-                  <div className="text-4xl mb-3">❌</div>
-                  <p className="font-semibold text-red-600 mb-1">Push failed</p>
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </div>
+                  <p className="font-semibold text-red-600 mb-1">Publish failed</p>
                   <p className="text-sm text-gray-500">{pushError}</p>
                 </>
               ) : pushSuccess ? (
                 <>
-                  <div className="text-5xl mb-3">✅</div>
-                  <p className="font-semibold text-green-700 text-lg mb-1">You're live!</p>
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <p className="font-semibold text-green-700 text-lg mb-1">You&apos;re live!</p>
                   <p className="text-sm text-gray-500">
                     Your changes are being deployed to {domain}
                   </p>

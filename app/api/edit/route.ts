@@ -8,7 +8,7 @@ const anthropic = new Anthropic({
 
 const SYSTEM_PROMPT = `You are a friendly website editor assistant for a small NZ business owner. They describe website changes in plain English and you make surgical edits to the HTML.
 
-CRITICAL: Respond using EXACTLY this format and nothing else:
+CRITICAL: Your ENTIRE response must use EXACTLY this format — no text before <<<MESSAGE>>>, no text after the last block:
 
 <<<MESSAGE>>>
 your friendly 1-2 sentence confirmation here
@@ -18,10 +18,11 @@ the exact HTML snippet to replace (copied verbatim from the current HTML)
 the new HTML snippet
 
 Rules:
+- Start your response immediately with <<<MESSAGE>>> — no preamble, no intro text
 - <<<FIND>>> must be a short unique snippet copied EXACTLY from the HTML — whitespace and all
 - <<<REPLACE>>> is the modified version of that snippet
 - Never return the entire HTML document — only the changed portion
-- If the user uploads an image, embed it as a base64 src inside <<<REPLACE>>>
+- If the user uploads an image, use the literal placeholder __UPLOADED_IMAGE__ as the src value. Do NOT write any base64 data. Example: <img src="__UPLOADED_IMAGE__" alt="description" class="...">
 - Your message must be simple, warm, and non-technical — like texting a friend
 - Make exactly the change requested, keep everything else identical
 - If you truly cannot express the change as a single find/replace (e.g. changes across many disconnected sections), use <<<HTML>>> instead of <<<FIND>>><<<REPLACE>>> and return the full modified HTML`;
@@ -47,7 +48,7 @@ function restoreBase64Images(html: string, map: Record<string, string>): string 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { clientId, password, currentHtml, userMessage, imageBase64, imageMediaType, history } = body;
+    const { clientId, password, currentHtml, userMessage, imageBase64, imageMediaType, selectedElementHtml, selectedElementLabel, history } = body;
 
     if (!validatePassword(clientId, password)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,9 +87,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Strip base64 from selected element too before sending to Claude
+    const strippedElement = selectedElementHtml
+      ? stripBase64Images(selectedElementHtml).stripped
+      : null;
+
+    const elementContext = strippedElement
+      ? `\n\nThe user clicked on this specific element in the preview (target your change here):\n\`\`\`html\n${strippedElement}\n\`\`\`\n(Element label: ${selectedElementLabel ?? "unknown"})`
+      : "";
+
+    const imageNote = imageBase64
+      ? `\n\n[An image has been uploaded. Use __UPLOADED_IMAGE__ as the src — do not write any base64 data.]`
+      : "";
+
     userContent.push({
       type: "text",
-      text: `Current HTML:\n\`\`\`html\n${strippedHtml}\n\`\`\`\n\nRequested change: ${userMessage}`,
+      text: `Current HTML:\n\`\`\`html\n${strippedHtml}\n\`\`\`${elementContext}${imageNote}\n\nRequested change: ${userMessage}`,
     });
 
     messages.push({
@@ -108,13 +122,20 @@ export async function POST(request: NextRequest) {
 
     const rawText = response.content[0].type === "text" ? response.content[0].text : "";
 
-    // Extract message (always present)
+    // Extract message — primary: <<<MESSAGE>>> block; fallback: text before <<<FIND>>> or <<<HTML>>>
+    let message: string;
     const messageMatch = rawText.match(/<<<MESSAGE>>>\s*([\s\S]*?)(?:<<<FIND>>>|<<<HTML>>>)/);
-    if (!messageMatch) {
-      console.error("Unexpected AI response format:", rawText.slice(0, 500));
-      return NextResponse.json({ error: "Unexpected response format from AI. Please try again." }, { status: 500 });
+    if (messageMatch) {
+      message = messageMatch[1].trim();
+    } else {
+      // Fallback: AI omitted <<<MESSAGE>>> but may have put friendly text before the structural block
+      const fallbackMatch = rawText.match(/^([\s\S]*?)(?:<<<FIND>>>|<<<HTML>>>)/);
+      if (!fallbackMatch) {
+        console.error("Unexpected AI response format:", rawText.slice(0, 500));
+        return NextResponse.json({ error: "Unexpected response format from AI. Please try again." }, { status: 500 });
+      }
+      message = fallbackMatch[1].trim() || "Done!";
     }
-    const message = messageMatch[1].trim();
 
     let html: string;
 
@@ -125,14 +146,13 @@ export async function POST(request: NextRequest) {
     if (findMatch && replaceMatch) {
       const find = findMatch[1].trim();
       const replace = replaceMatch[1].trim();
-      const restoredHtml = restoreBase64Images(strippedHtml, imageMap);
-      if (!restoredHtml.includes(find)) {
-        // Find text not found — fall back to asking for full HTML would require another round-trip,
-        // so instead return an error with context so the user can retry
+      // Search and replace on the stripped HTML (Claude's FIND may reference __B64_IMG_n__ placeholders),
+      // then restore base64 data into the result.
+      if (!strippedHtml.includes(find)) {
         console.error("FIND snippet not found in HTML. Snippet:", find.slice(0, 200));
         return NextResponse.json({ error: "I couldn't locate that exact text in the page. Please try rephrasing your request." }, { status: 422 });
       }
-      html = restoredHtml.replace(find, replace);
+      html = restoreBase64Images(strippedHtml.replace(find, replace), imageMap);
     } else {
       // Full HTML fallback mode
       const htmlMatch = rawText.match(/<<<HTML>>>\s*([\s\S]*?)$/);
@@ -142,7 +162,12 @@ export async function POST(request: NextRequest) {
       html = restoreBase64Images(htmlMatch[1].trim(), imageMap);
     }
 
-    return NextResponse.json({ message, html });
+    // Replace image placeholder with the actual uploaded image data URL
+    const finalHtml = imageBase64 && imageMediaType
+      ? html.replace(/__UPLOADED_IMAGE__/g, `data:${imageMediaType};base64,${imageBase64}`)
+      : html;
+
+    return NextResponse.json({ message, html: finalHtml });
   } catch (error: unknown) {
     console.error("Edit API error:", error);
 

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, useCallback, use, useRef } from "react";
 import JSZip from "jszip";
 import { getClient, Page } from "@/config/clients";
 import PasswordGate from "@/components/PasswordGate";
 import ChatPanel from "@/components/ChatPanel";
-import PreviewPanel from "@/components/PreviewPanel";
+import PreviewPanel, { SelectedElement } from "@/components/PreviewPanel";
 import PushButton from "@/components/PushButton";
 import { Message } from "@/components/MessageBubble";
+import { RotateCcw, RotateCw, Trash2 } from "lucide-react";
 
 interface UploadedImage {
   data: string;
@@ -102,6 +103,54 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   const [messages, setMessages] = useState<Message[]>([]);
   const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [pickerMode, setPickerMode] = useState(false);
+
+  // Undo / redo stacks keyed by filename
+  const undoStack = useRef<Record<string, string[]>>({});
+  const redoStack = useRef<Record<string, string[]>>({});
+  const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
+
+  function refreshHistorySize() {
+    setHistorySize({
+      undo: (undoStack.current[activePage] ?? []).length,
+      redo: (redoStack.current[activePage] ?? []).length,
+    });
+  }
+
+  function pushUndo(page: string, html: string) {
+    undoStack.current[page] = [...(undoStack.current[page] ?? []), html];
+    redoStack.current[page] = [];
+    refreshHistorySize();
+  }
+
+  function handleUndo() {
+    const stack = undoStack.current[activePage] ?? [];
+    if (!stack.length) return;
+    const prev = stack[stack.length - 1];
+    undoStack.current[activePage] = stack.slice(0, -1);
+    redoStack.current[activePage] = [...(redoStack.current[activePage] ?? []), currentHtml];
+    setCurrentHtml(prev);
+    refreshHistorySize();
+  }
+
+  function handleRedo() {
+    const stack = redoStack.current[activePage] ?? [];
+    if (!stack.length) return;
+    const next = stack[stack.length - 1];
+    redoStack.current[activePage] = stack.slice(0, -1);
+    undoStack.current[activePage] = [...(undoStack.current[activePage] ?? []), currentHtml];
+    setCurrentHtml(next);
+    refreshHistorySize();
+  }
+
+  function handleClearAllChanges() {
+    if (!confirm("Discard all unsaved changes and revert to the last saved version?")) return;
+    setCurrentHtml(savedHtml);
+    undoStack.current[activePage] = [];
+    redoStack.current[activePage] = [];
+    refreshHistorySize();
+  }
 
   // Push state
   const [isPushing, setIsPushing] = useState(false);
@@ -332,7 +381,9 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
     const imageToSend = uploadedImage;
+    const elementToSend = selectedElement;
     setUploadedImage(null);
+    setSelectedElement(null);
 
     try {
       const res = await fetch("/api/edit", {
@@ -345,6 +396,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           userMessage: text,
           imageBase64: imageToSend?.data ?? null,
           imageMediaType: imageToSend?.type ?? null,
+          selectedElementHtml: elementToSend?.outerHTML ?? null,
+          selectedElementLabel: elementToSend?.label ?? null,
           history: buildHistory(),
         }),
       });
@@ -361,6 +414,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           timestamp: new Date(),
         },
       ]);
+      pushUndo(activePage, currentHtml);
       setCurrentHtml(data.html);
     } catch (err: unknown) {
       setMessages((prev) => [
@@ -427,7 +481,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         {
           id: Date.now().toString(),
           role: "assistant",
-          content: "✅ Your changes have been pushed live! They'll be visible on your website in a minute or two.",
+          content: "Your changes have been published! They'll be visible on your website in a minute or two.",
           timestamp: new Date(),
         },
       ]);
@@ -442,7 +496,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         {
           id: Date.now().toString(),
           role: "assistant",
-          content: `❌ Push failed: ${msg}. Please try again or contact your web team.`,
+          content: `Publish failed: ${msg}. Please try again or contact your web team.`,
           timestamp: new Date(),
         },
       ]);
@@ -484,18 +538,53 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         style={{ background: "#113D79" }}
       >
         <div className="flex items-center gap-3">
-          <span
-            className="text-xl leading-none"
-            style={{ fontFamily: "var(--font-dm-serif)", color: "#BAA649" }}
-          >
-            113 WebEdit
-          </span>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="text-base text-white tracking-wide" style={{ fontFamily: "Inter, sans-serif" }}>
+              <span className="font-bold">WebEdit</span> by
+            </span>
+            <img
+              src="/Logo_Drafts__1_-removebg-preview.png"
+              alt="113 Digital"
+              className="h-8 w-auto"
+            />
+          </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 shadow-sm shadow-green-400/50" />
             <span className="text-sm font-medium text-white/90">{client.name}</span>
           </div>
         </div>
+
+        {/* Undo / Redo / Clear */}
+        {!isPlaceholder && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleUndo}
+              disabled={historySize.undo === 0}
+              title="Undo last change"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <RotateCcw size={15} />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={historySize.redo === 0}
+              title="Redo"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <RotateCw size={15} />
+            </button>
+            <button
+              onClick={handleClearAllChanges}
+              disabled={!hasChanges}
+              title="Clear all unsaved changes"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Trash2 size={13} />
+              <span>Clear all</span>
+            </button>
+          </div>
+        )}
 
         <PushButton
           hasChanges={hasChanges}
@@ -513,6 +602,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
             messages={messages}
             isLoading={isLoading}
             uploadedImage={uploadedImage}
+            selectedElement={selectedElement}
+            pickerMode={pickerMode}
             activePageLabel={activePagesConfig.find((p) => p.filename === activePage)?.label}
             pages={activePagesConfig}
             activePage={activePage}
@@ -520,6 +611,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
             onSendMessage={handleSendMessage}
             onImageUpload={setUploadedImage}
             onImageRemove={() => setUploadedImage(null)}
+            onClearElement={() => setSelectedElement(null)}
+            onTogglePicker={() => setPickerMode((v) => !v)}
           />
         </div>
 
@@ -533,6 +626,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
             onPageChange={handlePageChange}
             onFileUpload={handleFileUpload}
             onClear={handleClear}
+            onElementSelect={(el) => { setSelectedElement(el); setPickerMode(false); }}
+            pickerMode={pickerMode}
             isPushing={isPushing}
             pushSteps={pushSteps}
             pushSuccess={pushSuccess}
