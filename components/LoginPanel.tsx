@@ -14,11 +14,10 @@ export default function LoginPanel({ clients }: { clients: Client[] }) {
     setError("");
     setLoading(true);
 
-    // Match client by id or fall back to first client.
-    // Wire up proper email→clientId lookup when you add emails to client data.
-    const emailSlug = email.split("@")[0].toLowerCase();
+    // Match client by email field, fall back to first client
     const client =
-      clients.find((c) => c.id === emailSlug) ?? clients[0];
+      clients.find((c) => c.email?.toLowerCase() === email.toLowerCase()) ??
+      clients[0];
 
     if (!client) {
       setError("No account found for this email.");

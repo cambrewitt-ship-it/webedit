@@ -9,6 +9,7 @@ export interface Client {
   id: string;
   name: string;
   domain: string;
+  email?: string;
   password: string;
   githubRepo: string;
   githubBranch: string;
