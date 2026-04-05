@@ -170,6 +170,23 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // ---------- Auth ----------
 
+  // Auto-login from session saved by the home page LoginPanel
+  useEffect(() => {
+    if (password) return;
+    try {
+      const stored = sessionStorage.getItem("webedit_session");
+      if (stored) {
+        const { clientId: storedId, password: storedPw } = JSON.parse(stored);
+        if (storedId === clientId) {
+          handlePasswordSubmit(storedPw);
+        }
+      }
+    } catch {
+      // ignore malformed session data
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handlePasswordSubmit = useCallback(async (pw: string) => {
     setAuthError(false);
     const res = await fetch("/api/auth", {
