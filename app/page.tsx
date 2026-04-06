@@ -159,12 +159,14 @@ export default function Home() {
                   className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5"
                   style={{ fontFamily: "Satoshi, sans-serif" }}
                 >
-                  Stop paying rent for your website.<br />
+                  Stop paying rent on your website.<br />
                   Get <span className="bg-white px-1 rounded" style={{ color: "#113D79" }}>$0 monthly fees.</span> <em>Forever.</em>
                 </h1>
 
                 <p className="text-lg lg:text-xl text-white/70 mb-5">
-                  We migrate your site onto free hosting — you can edit it at anytime with AI - simply explain what you&apos;d like to change, and it&apos;s live in seconds. <span className="text-white font-bold">Most clients save $500+ per year.</span>
+                  We migrate your site onto free hosting — you can edit it at anytime with AI.<br />
+                  Simply explain what you&apos;d like to change, and it&apos;s live in seconds.<br />
+                  <span className="text-white font-bold">Most clients save $500+ per year.</span>
                 </p>
 
                 {/* Powered by Claude badge */}
@@ -187,18 +189,6 @@ export default function Home() {
 
             </div>
 
-            {/* Demo video */}
-            <p className="text-white font-bold text-3xl lg:text-4xl mt-14 mb-4">Describe your edits in English - let AI do the rest.</p>
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-              <video
-                src="/webedit-demo.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full h-auto block"
-              />
-            </div>
           </section>
 
           {/* How it works */}
@@ -225,6 +215,21 @@ export default function Home() {
                   <p className="text-sm text-gray-500 leading-relaxed">{step.body}</p>
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/* Demo video */}
+          <section className="px-10 lg:px-16 pb-16 bg-white">
+            <p className="font-bold text-3xl lg:text-4xl mb-4" style={{ color: "#113D79" }}>Describe your edits in English - let AI do the rest.</p>
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+              <video
+                src="/webedit-demo.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-auto block"
+              />
             </div>
           </section>
 
@@ -258,7 +263,7 @@ export default function Home() {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold" style={{ color: "#113D79" }}>$399 <span className="text-base font-normal text-gray-400">one-time</span></p>
+                      <p className="text-2xl font-bold" style={{ color: "#113D79" }}>$399 <span className="text-base font-bold" style={{ color: "#16a34a" }}>ONE TIME FEE</span></p>
                       <p className="text-sm text-gray-500 mt-0.5">Migration: we clone and rebuild your site on free hosting</p>
                     </div>
                   </div>

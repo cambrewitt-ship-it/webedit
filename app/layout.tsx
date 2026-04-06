@@ -15,7 +15,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "113 WebEdit",
+  title: "WebEdit",
   description: "AI-powered website editor for small business clients",
 };
 

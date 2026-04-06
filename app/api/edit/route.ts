@@ -220,8 +220,10 @@ export async function POST(request: NextRequest) {
       messages: trimmedHistory,
     });
 
-    // Record usage — must be awaited so it completes before the serverless function exits
-    await recordUsage(clientId, response.model, response.usage.input_tokens, response.usage.output_tokens);
+    // Record usage — fire and forget; a logging failure must never surface as a user error
+    recordUsage(clientId, response.model, response.usage.input_tokens, response.usage.output_tokens).catch((err) =>
+      console.error("recordUsage failed (non-fatal):", err)
+    );
 
     const rawText = response.content[0].type === "text" ? response.content[0].text : "";
 
