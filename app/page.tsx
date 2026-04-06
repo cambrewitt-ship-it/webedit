@@ -159,8 +159,8 @@ export default function Home() {
                   className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5"
                   style={{ fontFamily: "Satoshi, sans-serif" }}
                 >
-                  Stop <em>renting</em> your website.<br />
-                  Own it — and edit it with AI.
+                  Stop paying rent for your website.<br />
+                  Get <span className="bg-white px-1 rounded" style={{ color: "#113D79" }}>$0 monthly fees.</span> <em>Forever.</em>
                 </h1>
 
                 <p className="text-lg lg:text-xl text-white/70 mb-5">
@@ -174,6 +174,7 @@ export default function Home() {
                 </div>
 
                 {/* Lead form */}
+                <p className="text-white font-bold text-2xl lg:text-3xl mb-3">Want to save $500+ per year? Get a free quote.</p>
                 <div id="quote" className="mb-0">
                   <LeadForm />
                 </div>
@@ -187,7 +188,8 @@ export default function Home() {
             </div>
 
             {/* Demo video */}
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10 mt-14">
+            <p className="text-white font-bold text-3xl lg:text-4xl mt-14 mb-4">Describe your edits in English - let AI do the rest.</p>
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
               <video
                 src="/webedit-demo.mp4"
                 autoPlay
@@ -199,8 +201,35 @@ export default function Home() {
             </div>
           </section>
 
+          {/* How it works */}
+          <section id="how-it-works" className="px-10 lg:px-16 py-16 bg-white">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+              Simple process
+            </p>
+            <h2
+              className="text-3xl font-bold mb-12"
+              style={{ fontFamily: "Satoshi, sans-serif", color: "#113D79" }}
+            >
+              How it works
+            </h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              {steps.map((step, i) => (
+                <div key={step.num} className="flex flex-col">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 text-white text-xl font-bold"
+                    style={{ background: "#113D79" }}
+                  >
+                    {i + 1}
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">{step.title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">{step.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* Testimonials */}
-          <section className="px-10 lg:px-16 py-16 bg-white">
+          <section className="px-10 lg:px-16 py-16" style={{ background: "#f8f9fc" }}>
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
               Client results
             </p>
@@ -214,7 +243,7 @@ export default function Home() {
               {testimonials.map((t) => (
                 <div
                   key={t.name}
-                  className="rounded-2xl border border-gray-100 bg-gray-50 p-6 flex flex-col"
+                  className="rounded-2xl border border-gray-100 bg-white p-6 flex flex-col"
                 >
                   <Stars />
                   <p className="text-gray-700 text-sm leading-relaxed flex-1">
@@ -223,34 +252,6 @@ export default function Home() {
                   <div className="mt-5 pt-4 border-t border-gray-200">
                     <p className="text-sm font-semibold text-gray-800">{t.name}</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* How it works */}
-          <section id="how-it-works" className="px-10 lg:px-16 py-16" style={{ background: "#f8f9fc" }}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-              Simple process
-            </p>
-            <h2
-              className="text-3xl font-bold mb-12"
-              style={{ fontFamily: "Satoshi, sans-serif", color: "#113D79" }}
-            >
-              How it works
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              {steps.map((step) => (
-                <div key={step.num} className="flex flex-col">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 text-white"
-                    style={{ background: "#113D79" }}
-                  >
-                    {step.icon}
-                  </div>
-                  <p className="text-xs font-bold tracking-widest text-gray-300 mb-1">{step.num}</p>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">{step.title}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">{step.body}</p>
                 </div>
               ))}
             </div>
