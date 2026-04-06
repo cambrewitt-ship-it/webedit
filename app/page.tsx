@@ -228,35 +228,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Testimonials */}
-          <section className="px-10 lg:px-16 py-16" style={{ background: "#f8f9fc" }}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-              Client results
-            </p>
-            <h2
-              className="text-3xl font-bold mb-10"
-              style={{ fontFamily: "Satoshi, sans-serif", color: "#113D79" }}
-            >
-              What our clients say
-            </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              {testimonials.map((t) => (
-                <div
-                  key={t.name}
-                  className="rounded-2xl border border-gray-100 bg-white p-6 flex flex-col"
-                >
-                  <Stars />
-                  <p className="text-gray-700 text-sm leading-relaxed flex-1">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                  <div className="mt-5 pt-4 border-t border-gray-200">
-                    <p className="text-sm font-semibold text-gray-800">{t.name}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
           {/* Pricing */}
           <section id="pricing" className="px-10 lg:px-16 py-16 bg-white">
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
@@ -330,6 +301,35 @@ export default function Home() {
               <div className="flex flex-col">
                 <CostChart />
               </div>
+            </div>
+          </section>
+
+          {/* Testimonials */}
+          <section className="px-10 lg:px-16 py-16" style={{ background: "#f8f9fc" }}>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+              Client results
+            </p>
+            <h2
+              className="text-3xl font-bold mb-10"
+              style={{ fontFamily: "Satoshi, sans-serif", color: "#113D79" }}
+            >
+              What our clients say
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              {testimonials.map((t) => (
+                <div
+                  key={t.name}
+                  className="rounded-2xl border border-gray-100 bg-white p-6 flex flex-col"
+                >
+                  <Stars />
+                  <p className="text-gray-700 text-sm leading-relaxed flex-1">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                  <div className="mt-5 pt-4 border-t border-gray-200">
+                    <p className="text-sm font-semibold text-gray-800">{t.name}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
