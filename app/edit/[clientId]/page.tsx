@@ -7,6 +7,7 @@ import PasswordGate from "@/components/PasswordGate";
 import ChatPanel from "@/components/ChatPanel";
 import PreviewPanel, { SelectedElement } from "@/components/PreviewPanel";
 import PushButton from "@/components/PushButton";
+import BuyCreditsModal from "@/components/BuyCreditsModal";
 import { Message } from "@/components/MessageBubble";
 import { RotateCcw, RotateCw, Trash2 } from "lucide-react";
 
@@ -90,6 +91,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   const [password, setPassword] = useState<string | null>(null);
   const [authError, setAuthError] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Which pages are available (either from client config or from an uploaded ZIP)
   const [sessionPages, setSessionPages] = useState<Page[] | null>(null);
@@ -155,6 +157,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // Push state
   const [isPushing, setIsPushing] = useState(false);
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
+  const [budgetInfo, setBudgetInfo] = useState<{ usedTokens: number; budgetTokens: number } | null>(null);
   const [pushStep, setPushStep] = useState("");
   const [pushSteps, setPushSteps] = useState<PushStep[]>([]);
   const [pushSuccess, setPushSuccess] = useState(false);
@@ -170,6 +174,18 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   }
 
   // ---------- Auth ----------
+
+  // Detect Stripe payment success redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      setPaymentSuccess(true);
+      // Clean the URL without reloading
+      window.history.replaceState({}, "", window.location.pathname);
+      const t = setTimeout(() => setPaymentSuccess(false), 6000);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   // Auto-login from session saved by the home page LoginPanel
   useEffect(() => {
@@ -428,6 +444,15 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       });
 
       const data = await res.json();
+
+      // Budget exceeded — show upgrade modal instead of an error message
+      if (res.status === 402 && data.error === "BUDGET_EXCEEDED") {
+        setBudgetInfo({ usedTokens: data.usedTokens, budgetTokens: data.budgetTokens });
+        setShowBuyCredits(true);
+        setIsLoading(false);
+        return;
+      }
+
       if (!res.ok || data.error) throw new Error(data.error || "Unknown error");
 
       setMessages((prev) => [
@@ -665,6 +690,27 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           />
         </div>
       </div>
+
+      {/* Buy credits modal */}
+      {showBuyCredits && password && (
+        <BuyCreditsModal
+          clientId={clientId}
+          password={password}
+          usedTokens={budgetInfo?.usedTokens}
+          budgetTokens={budgetInfo?.budgetTokens}
+          onClose={() => setShowBuyCredits(false)}
+        />
+      )}
+
+      {/* Payment success toast */}
+      {paymentSuccess && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-white text-sm font-medium" style={{ background: "#16a34a" }}>
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Payment successful — your tokens have been added. You&apos;re good to keep editing!
+        </div>
+      )}
     </div>
   );
 }

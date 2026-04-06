@@ -14,6 +14,8 @@ export interface Client {
   githubRepo: string;
   githubBranch: string;
   pages: Page[];
+  /** API dollar budget — defaults to $15.00 (base plan) if not set */
+  dollarBudget?: number;
 }
 
 export const clients: Client[] = clientsData as Client[];

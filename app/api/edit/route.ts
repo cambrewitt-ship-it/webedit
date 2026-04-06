@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { validatePassword } from "@/config/clients";
+import { getClient, validatePassword } from "@/config/clients";
+
+// Pricing constants — must stay in sync with admin/page.tsx
+const INPUT_COST_PER_TOKEN = 3.0 / 1_000_000;   // $3 per million input tokens
+const OUTPUT_COST_PER_TOKEN = 15.0 / 1_000_000;  // $15 per million output tokens
+const DEFAULT_DOLLAR_BUDGET = 15.0;              // Base plan default
 
 const APP_GITHUB_REPO = process.env.APP_GITHUB_REPO;
 const APP_GITHUB_BRANCH = process.env.APP_GITHUB_BRANCH ?? "main";
@@ -51,6 +56,36 @@ async function recordUsage(clientId: string, model: string, inputTokens: number,
   );
   if (!putRes.ok) {
     console.error(`recordUsage: failed to write ${USAGE_FILE} — ${putRes.status} ${(await putRes.text()).slice(0, 200)}`);
+  }
+}
+
+/** Read total API spend in USD for a given client from usage.json */
+async function getClientSpend(clientId: string): Promise<number> {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token || !APP_GITHUB_REPO) return 0;
+
+    const res = await fetch(
+      `https://api.github.com/repos/${APP_GITHUB_REPO}/contents/${USAGE_FILE}?ref=${APP_GITHUB_BRANCH}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+    if (!res.ok) return 0;
+
+    const file = await res.json();
+    const entries: Array<{ clientId: string; inputTokens: number; outputTokens: number }> =
+      JSON.parse(Buffer.from(file.content, "base64").toString("utf-8"));
+
+    return entries
+      .filter((e) => e.clientId === clientId)
+      .reduce((sum, e) => sum + e.inputTokens * INPUT_COST_PER_TOKEN + e.outputTokens * OUTPUT_COST_PER_TOKEN, 0);
+  } catch {
+    return 0; // If we can't read usage, don't block the user
   }
 }
 
@@ -108,6 +143,19 @@ export async function POST(request: NextRequest) {
 
     if (!currentHtml || !userMessage) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // ── Budget check ─────────────────────────────────────────────
+    const client = getClient(clientId);
+    const dollarBudget = client?.dollarBudget ?? DEFAULT_DOLLAR_BUDGET;
+    const currentSpend = await getClientSpend(clientId);
+    if (currentSpend >= dollarBudget) {
+      const usedTokens = Math.round(currentSpend / ((INPUT_COST_PER_TOKEN + OUTPUT_COST_PER_TOKEN) / 2));
+      const budgetTokens = Math.round(dollarBudget / ((INPUT_COST_PER_TOKEN + OUTPUT_COST_PER_TOKEN) / 2));
+      return NextResponse.json(
+        { error: "BUDGET_EXCEEDED", usedTokens, budgetTokens },
+        { status: 402 }
+      );
     }
 
     // Strip embedded base64 images before sending to Claude to avoid token limits

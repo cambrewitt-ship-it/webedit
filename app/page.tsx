@@ -302,7 +302,7 @@ export default function Home() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold" style={{ color: "#113D79" }}>+$99 <span className="text-base font-normal text-gray-400">/year</span></p>
-                      <p className="text-sm text-gray-500 mt-0.5">WebEdit portal access: unlimited AI-powered edits</p>
+                      <p className="text-sm text-gray-500 mt-0.5">WebEdit portal access: 2,000,000 tokens of AI-powered edits (~333 typical edits)</p>
                     </div>
                   </div>
 
