@@ -46,11 +46,10 @@ export async function POST(request: NextRequest) {
     const commitData = await ghFetch(`/git/commits/${currentCommitSha}`);
     const baseTreeSha: string = commitData.tree.sha;
 
-    // 3. Create a blob with the new file content (supports large files unlike Contents API)
-    const base64Content = Buffer.from(html, "utf-8").toString("base64");
+    // 3. Create a blob with the new file content
     const blobData = await ghFetch(`/git/blobs`, {
       method: "POST",
-      body: JSON.stringify({ content: base64Content, encoding: "base64" }),
+      body: JSON.stringify({ content: html, encoding: "utf-8" }),
     });
     const blobSha: string = blobData.sha;
 

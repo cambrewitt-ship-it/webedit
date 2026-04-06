@@ -89,6 +89,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   const [password, setPassword] = useState<string | null>(null);
   const [authError, setAuthError] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   // Which pages are available (either from client config or from an uploaded ZIP)
   const [sessionPages, setSessionPages] = useState<Page[] | null>(null);
@@ -172,18 +173,23 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // Auto-login from session saved by the home page LoginPanel
   useEffect(() => {
-    if (password) return;
+    if (password) {
+      setCheckingSession(false);
+      return;
+    }
     try {
       const stored = sessionStorage.getItem("webedit_session");
       if (stored) {
         const { clientId: storedId, password: storedPw } = JSON.parse(stored);
         if (storedId === clientId) {
-          handlePasswordSubmit(storedPw);
+          handlePasswordSubmit(storedPw).finally(() => setCheckingSession(false));
+          return;
         }
       }
     } catch {
       // ignore malformed session data
     }
+    setCheckingSession(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -391,8 +397,10 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: uploadedImage ? `${text} [image attached]` : text,
+      content: text,
       timestamp: new Date(),
+      imageData: uploadedImage?.data ?? undefined,
+      imageType: uploadedImage?.type ?? undefined,
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -535,6 +543,10 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         </div>
       </div>
     );
+  }
+
+  if (checkingSession) {
+    return null;
   }
 
   if (!password) {

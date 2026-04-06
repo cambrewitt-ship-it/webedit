@@ -1,14 +1,14 @@
 // Pure SVG — no client directive needed
 
-const VIEW_W = 520;
+const VIEW_W = 620;
 const VIEW_H = 380;
-const PAD_L = 62;
-const PAD_R = 20;
+const PAD_L = 72;
+const PAD_R = 130;
 const PAD_T = 28;
-const PAD_B = 44;
+const PAD_B = 50;
 
-const CHART_W = VIEW_W - PAD_L - PAD_R; // 438
-const CHART_H = VIEW_H - PAD_T - PAD_B; // 308
+const CHART_W = VIEW_W - PAD_L - PAD_R; // 418
+const CHART_H = VIEW_H - PAD_T - PAD_B; // 302
 
 const MAX_VAL = 2600;
 
@@ -37,14 +37,13 @@ export default function CostChart() {
   return (
     <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 flex flex-col">
       <div className="mb-4">
-        <h3 className="text-base font-bold text-gray-800">5-year cost comparison</h3>
-        <p className="text-xs text-gray-400 mt-0.5">Cumulative spend — WebEdit vs traditional hosting</p>
+        <h3 className="text-base font-bold text-gray-800">WebEdit vs Traditional Website Hosting</h3>
       </div>
 
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="w-full"
-        aria-label="5-year cost comparison chart"
+        aria-label="WebEdit vs Traditional Website Hosting cost comparison chart"
       >
         {/* Horizontal grid lines + Y labels */}
         {Y_TICKS.map((tick) => (
@@ -61,7 +60,7 @@ export default function CostChart() {
               x={PAD_L - 8}
               y={yp(tick) + 4}
               textAnchor="end"
-              fontSize="10"
+              fontSize="13"
               fill="#9ca3af"
             >
               {tick === 0 ? "$0" : tick >= 1000 ? `$${tick / 1000}k` : `$${tick}`}
@@ -76,7 +75,7 @@ export default function CostChart() {
             x={xp(i)}
             y={VIEW_H - 10}
             textAnchor="middle"
-            fontSize="10"
+            fontSize="13"
             fill="#9ca3af"
           >
             Year {yr}
@@ -132,21 +131,29 @@ export default function CostChart() {
 
         {/* Savings label */}
         <text
-          x={xp(4) + 22}
-          y={yr5SavedMidY - 7}
-          fontSize="11"
-          fontWeight="700"
+          x={xp(4) + 26}
+          y={yr5SavedMidY - 28}
+          fontSize="28"
+          fontWeight="800"
           fill="#16a34a"
         >
           $1,606
         </text>
         <text
-          x={xp(4) + 22}
-          y={yr5SavedMidY + 7}
-          fontSize="10"
+          x={xp(4) + 26}
+          y={yr5SavedMidY + 4}
+          fontSize="18"
           fill="#16a34a"
         >
-          saved
+          saved after
+        </text>
+        <text
+          x={xp(4) + 26}
+          y={yr5SavedMidY + 26}
+          fontSize="18"
+          fill="#16a34a"
+        >
+          5 years
         </text>
       </svg>
 
@@ -154,15 +161,15 @@ export default function CostChart() {
       <div className="flex gap-6 mt-3 pt-3 border-t border-gray-100">
         <div className="flex items-center gap-2">
           <div className="w-6 h-0.5 rounded-full" style={{ background: "#113D79" }} />
-          <span className="text-xs text-gray-500 font-medium">WebEdit</span>
+          <span className="text-sm text-gray-500 font-medium">WebEdit</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-6 h-0.5 rounded-full bg-red-400" />
-          <span className="text-xs text-gray-500 font-medium">Traditional hosting</span>
+          <span className="text-sm text-gray-500 font-medium">Traditional hosting</span>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <div className="w-3 h-3 rounded-sm opacity-20" style={{ background: "#113D79" }} />
-          <span className="text-xs text-gray-400">savings zone</span>
+          <span className="text-sm text-gray-400">savings zone</span>
         </div>
       </div>
     </div>

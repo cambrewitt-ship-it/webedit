@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@/config/clients";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const APP_GITHUB_REPO = process.env.APP_GITHUB_REPO; // e.g. "cambrewitt-ship-it/oot-website"
+const APP_GITHUB_REPO = process.env.APP_GITHUB_REPO;
 const APP_GITHUB_BRANCH = process.env.APP_GITHUB_BRANCH ?? "main";
 const CLIENTS_FILE = "data/clients.json";
+const USAGE_FILE = "data/usage.json";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,128 +26,132 @@ async function ghFetch(path: string, options?: RequestInit) {
   return res;
 }
 
-// GET /api/admin — list all clients (admin only)
+async function readJsonFile<T>(filePath: string): Promise<{ data: T; sha: string } | null> {
+  const res = await ghFetch(`/contents/${filePath}?ref=${APP_GITHUB_BRANCH}`);
+  if (!res.ok) return null;
+  const file = await res.json();
+  const data: T = JSON.parse(Buffer.from(file.content, "base64").toString("utf-8"));
+  return { data, sha: file.sha };
+}
+
+async function writeJsonFile(filePath: string, data: unknown, sha: string, message: string) {
+  const content = Buffer.from(JSON.stringify(data, null, 2) + "\n", "utf-8").toString("base64");
+  return ghFetch(`/contents/${filePath}`, {
+    method: "PUT",
+    body: JSON.stringify({ message, content, sha, branch: APP_GITHUB_BRANCH }),
+  });
+}
+
+// GET /api/admin — list clients + optionally usage
 export async function GET(request: NextRequest) {
   const pw = request.headers.get("x-admin-password");
   if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
 
-  // Read clients.json from GitHub so we always get the live version
-  const res = await ghFetch(`/contents/${CLIENTS_FILE}?ref=${APP_GITHUB_BRANCH}`);
-  if (!res.ok) {
+  const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
+  if (!clientsFile) {
     return NextResponse.json({ error: "Could not read clients from GitHub" }, { status: 500 });
   }
-  const data = await res.json();
-  const clients: Client[] = JSON.parse(Buffer.from(data.content, "base64").toString("utf-8"));
-  return NextResponse.json({ clients });
+
+  const usageFile = await readJsonFile<UsageEntry[]>(USAGE_FILE);
+  const usage = usageFile?.data ?? [];
+
+  return NextResponse.json({ clients: clientsFile.data, usage });
 }
 
 // POST /api/admin — create a new client
 export async function POST(request: NextRequest) {
   const pw = request.headers.get("x-admin-password");
   if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
-
-  if (!APP_GITHUB_REPO) {
-    return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
-  }
+  if (!APP_GITHUB_REPO) return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
 
   const body = await request.json();
-  const { id, name, domain, password, githubRepo, githubBranch, pages } = body as Partial<Client>;
+  const { id, name, domain, email, password, githubRepo, githubBranch, pages } = body as Partial<Client>;
 
   if (!id || !name || !domain || !password || !githubRepo || !pages?.length) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
-
-  // Validate id format
   if (!/^[a-z0-9-]+$/.test(id)) {
     return NextResponse.json({ error: "ID must be lowercase letters, numbers, and hyphens only" }, { status: 400 });
   }
 
-  // Read current clients.json from GitHub
-  const getRes = await ghFetch(`/contents/${CLIENTS_FILE}?ref=${APP_GITHUB_BRANCH}`);
-  if (!getRes.ok) {
-    return NextResponse.json({ error: "Could not read current clients.json from GitHub" }, { status: 500 });
-  }
-  const fileData = await getRes.json();
-  const sha: string = fileData.sha;
-  const currentClients: Client[] = JSON.parse(Buffer.from(fileData.content, "base64").toString("utf-8"));
+  const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
+  if (!clientsFile) return NextResponse.json({ error: "Could not read clients.json" }, { status: 500 });
 
-  // Check for duplicate id
-  if (currentClients.find((c) => c.id === id)) {
+  if (clientsFile.data.find((c) => c.id === id)) {
     return NextResponse.json({ error: `Client with id "${id}" already exists` }, { status: 409 });
   }
 
   const newClient: Client = {
-    id,
-    name,
-    domain,
+    id, name, domain,
+    ...(email ? { email } : {}),
     password,
     githubRepo,
     githubBranch: githubBranch ?? "main",
-    pages,
+    pages: pages!,
   };
 
-  const updatedClients = [...currentClients, newClient];
-  const newContent = Buffer.from(JSON.stringify(updatedClients, null, 2) + "\n", "utf-8").toString("base64");
-
-  // Commit the updated clients.json
-  const putRes = await ghFetch(`/contents/${CLIENTS_FILE}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      message: `Add client: ${name}`,
-      content: newContent,
-      sha,
-      branch: APP_GITHUB_BRANCH,
-    }),
-  });
-
+  const updated = [...clientsFile.data, newClient];
+  const putRes = await writeJsonFile(CLIENTS_FILE, updated, clientsFile.sha, `Add client: ${name}`);
   if (!putRes.ok) {
-    const errText = await putRes.text();
-    return NextResponse.json({ error: `GitHub write failed: ${errText.slice(0, 200)}` }, { status: 500 });
+    return NextResponse.json({ error: `GitHub write failed: ${(await putRes.text()).slice(0, 200)}` }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, client: newClient });
 }
 
-// DELETE /api/admin — remove a client by id
+// PATCH /api/admin — reset a client's password
+export async function PATCH(request: NextRequest) {
+  const pw = request.headers.get("x-admin-password");
+  if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
+  if (!APP_GITHUB_REPO) return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
+
+  const { id, password: newPassword } = await request.json();
+  if (!id || !newPassword) return NextResponse.json({ error: "Missing id or password" }, { status: 400 });
+
+  const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
+  if (!clientsFile) return NextResponse.json({ error: "Could not read clients.json" }, { status: 500 });
+
+  const idx = clientsFile.data.findIndex((c) => c.id === id);
+  if (idx === -1) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+
+  const updated = clientsFile.data.map((c) => c.id === id ? { ...c, password: newPassword } : c);
+  const putRes = await writeJsonFile(CLIENTS_FILE, updated, clientsFile.sha, `Reset password for client: ${id}`);
+  if (!putRes.ok) {
+    return NextResponse.json({ error: `GitHub write failed: ${(await putRes.text()).slice(0, 200)}` }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+// DELETE /api/admin — remove a client
 export async function DELETE(request: NextRequest) {
   const pw = request.headers.get("x-admin-password");
   if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
-
-  if (!APP_GITHUB_REPO) {
-    return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
-  }
+  if (!APP_GITHUB_REPO) return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
 
   const { id } = await request.json();
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  const getRes = await ghFetch(`/contents/${CLIENTS_FILE}?ref=${APP_GITHUB_BRANCH}`);
-  if (!getRes.ok) {
-    return NextResponse.json({ error: "Could not read clients.json" }, { status: 500 });
-  }
-  const fileData = await getRes.json();
-  const sha: string = fileData.sha;
-  const currentClients: Client[] = JSON.parse(Buffer.from(fileData.content, "base64").toString("utf-8"));
+  const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
+  if (!clientsFile) return NextResponse.json({ error: "Could not read clients.json" }, { status: 500 });
 
-  const filtered = currentClients.filter((c) => c.id !== id);
-  if (filtered.length === currentClients.length) {
+  const filtered = clientsFile.data.filter((c) => c.id !== id);
+  if (filtered.length === clientsFile.data.length) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  const newContent = Buffer.from(JSON.stringify(filtered, null, 2) + "\n", "utf-8").toString("base64");
-  const putRes = await ghFetch(`/contents/${CLIENTS_FILE}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      message: `Remove client: ${id}`,
-      content: newContent,
-      sha,
-      branch: APP_GITHUB_BRANCH,
-    }),
-  });
-
+  const putRes = await writeJsonFile(CLIENTS_FILE, filtered, clientsFile.sha, `Remove client: ${id}`);
   if (!putRes.ok) {
-    const errText = await putRes.text();
-    return NextResponse.json({ error: `GitHub write failed: ${errText.slice(0, 200)}` }, { status: 500 });
+    return NextResponse.json({ error: `GitHub write failed: ${(await putRes.text()).slice(0, 200)}` }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
+}
+
+export interface UsageEntry {
+  clientId: string;
+  timestamp: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
 }

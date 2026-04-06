@@ -5,6 +5,8 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  imageData?: string;
+  imageType?: string;
 }
 
 interface MessageBubbleProps {
@@ -30,10 +32,8 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
       {/* Bubble */}
       <div
-        className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-          isUser
-            ? "rounded-tr-sm"
-            : "rounded-tl-sm"
+        className={`max-w-[85%] rounded-2xl text-sm leading-relaxed overflow-hidden ${
+          isUser ? "rounded-tr-sm" : "rounded-tl-sm"
         }`}
         style={
           isUser
@@ -41,7 +41,14 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             : { background: "#EEF4FF", color: "#1a1a2e" }
         }
       >
-        {message.content}
+        {message.imageData && (
+          <img
+            src={`data:${message.imageType};base64,${message.imageData}`}
+            alt="attached"
+            className="w-full max-h-48 object-cover block"
+          />
+        )}
+        <div className="px-4 py-3">{message.content}</div>
       </div>
     </div>
   );

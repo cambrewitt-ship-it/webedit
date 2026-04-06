@@ -1,8 +1,11 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 import { clients } from "@/config/clients";
 import LeadForm from "@/components/LeadForm";
 import LoginPanel from "@/components/LoginPanel";
 import CostChart from "@/components/CostChart";
+import { X } from "lucide-react";
 
 /* ─── helpers ──────────────────────────────────────────────── */
 
@@ -72,6 +75,8 @@ const steps = [
 /* ─── page ──────────────────────────────────────────────────── */
 
 export default function Home() {
+  const [showLogin, setShowLogin] = useState(false);
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
 
@@ -99,54 +104,97 @@ export default function Home() {
           </a>
           <a
             href="#quote"
-            className="px-4 py-1.5 rounded-lg bg-white text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ color: "#113D79" }}
+            className="px-4 py-1.5 rounded-lg bg-white/10 border border-white/20 text-sm font-medium text-white/80 hover:text-white hover:bg-white/20 transition-all"
           >
             Get a Quote
           </a>
+          <button
+            onClick={() => setShowLogin(true)}
+            className="px-4 py-1.5 rounded-lg bg-white text-sm font-semibold transition-opacity hover:opacity-90"
+            style={{ color: "#113D79" }}
+          >
+            Sign In
+          </button>
         </nav>
       </header>
+
+      {/* ── Login drawer ─────────────────────────────────────── */}
+      {/* Backdrop */}
+      {showLogin && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowLogin(false)}
+        />
+      )}
+      {/* Panel */}
+      <div
+        className={`fixed top-0 right-0 z-50 h-full w-full max-w-sm shadow-2xl transition-transform duration-300 ease-in-out ${
+          showLogin ? "translate-x-0" : "translate-x-full"
+        }`}
+        style={{ background: "#f1f3f5" }}
+      >
+        <button
+          onClick={() => setShowLogin(false)}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-gray-600 transition-colors cursor-pointer"
+          aria-label="Close"
+        >
+          <X size={16} />
+        </button>
+        <LoginPanel clients={clients} />
+      </div>
 
       {/* ── Body ─────────────────────────────────────────────── */}
       <div className="flex flex-1">
 
-        {/* Left — scrollable marketing content (3/4) */}
-        <main className="w-full md:w-3/4 min-w-0">
+        {/* Left — scrollable marketing content */}
+        <main className="w-full min-w-0">
 
           {/* Hero */}
           <section className="px-10 lg:px-16 py-16 lg:py-20" style={{ background: "#0d2f5e" }}>
-            <h1
-              className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5"
-              style={{ fontFamily: "Satoshi, sans-serif" }}
-            >
-              Stop <em>renting</em> your website.<br />
-              Own it — and edit it with AI.
-            </h1>
+            <div className="flex flex-col lg:flex-row lg:items-start lg:gap-12">
 
-            <p className="text-lg lg:text-xl text-white/70 mb-5 max-w-2xl">
-              We migrate your site onto free hosting — you can edit it at anytime with AI - simply explain what you&apos;d like to change, and it&apos;s live in seconds. <span className="text-white font-bold">Most clients save $500+ per year.</span>
-            </p>
+              {/* Left — text + form */}
+              <div className="flex-1 min-w-0">
+                <h1
+                  className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5"
+                  style={{ fontFamily: "Satoshi, sans-serif" }}
+                >
+                  Stop <em>renting</em> your website.<br />
+                  Own it — and edit it with AI.
+                </h1>
 
-            {/* Powered by Claude badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 mb-10">
-              <span className="text-xs text-white/40">Powered by</span>
-              <span className="text-xs font-semibold" style={{ color: "#D97757" }}>Claude</span>
+                <p className="text-lg lg:text-xl text-white/70 mb-5">
+                  We migrate your site onto free hosting — you can edit it at anytime with AI - simply explain what you&apos;d like to change, and it&apos;s live in seconds. <span className="text-white font-bold">Most clients save $500+ per year.</span>
+                </p>
+
+                {/* Powered by Claude badge */}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 mb-10">
+                  <span className="text-xs text-white/40">Powered by</span>
+                  <span className="text-xs font-semibold" style={{ color: "#D97757" }}>Claude</span>
+                </div>
+
+                {/* Lead form */}
+                <div id="quote" className="mb-0">
+                  <LeadForm />
+                </div>
+              </div>
+
+              {/* Right — cost comparison chart */}
+              <div className="hidden lg:block flex-shrink-0 w-1/3 mt-2">
+                <CostChart />
+              </div>
+
             </div>
 
-            {/* Lead form */}
-            <div id="quote" className="max-w-2xl mb-14">
-              <LeadForm />
-            </div>
-
-            {/* Screenshot */}
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-              <Image
-                src="/screenshot.png"
-                alt="WebEdit AI editor preview"
-                width={1800}
-                height={1200}
-                className="w-full h-auto"
-                priority
+            {/* Demo video */}
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10 mt-14">
+              <video
+                src="/webedit-demo.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-auto block"
               />
             </div>
           </section>
@@ -220,7 +268,7 @@ export default function Home() {
               Simple, transparent pricing
             </h2>
 
-            <div className="grid lg:grid-cols-2 gap-8 max-w-4xl">
+            <div className="grid lg:grid-cols-2 gap-8">
               <div className="rounded-2xl border-2 overflow-hidden" style={{ borderColor: "#113D79" }}>
                 {/* Card header */}
                 <div className="px-8 py-6" style={{ background: "#113D79" }}>
@@ -278,13 +326,8 @@ export default function Home() {
               </div>
 
               {/* Cost comparison chart */}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col">
                 <CostChart />
-                <div className="text-2xl font-bold text-gray-800 leading-snug text-center">
-                  <p>Save $400+ every year.</p>
-                  <p>Edit your website easier.</p>
-                  <p>You do the math.</p>
-                </div>
               </div>
             </div>
           </section>
@@ -347,17 +390,6 @@ export default function Home() {
           </footer>
 
         </main>
-
-        {/* Divider */}
-        <div className="hidden md:block w-px bg-gray-200 flex-shrink-0" />
-
-        {/* Right — sticky login panel (1/4) */}
-        <aside
-          className="hidden md:block w-1/4 flex-shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto"
-          style={{ background: "#f1f3f5" }}
-        >
-          <LoginPanel clients={clients} />
-        </aside>
       </div>
     </div>
   );

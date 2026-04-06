@@ -132,12 +132,23 @@ function injectHelpers(html: string, domain: string): string {
 
   const interceptScript = `<script>
 (function(){
+  var baseDomain = ${JSON.stringify(domain)};
   document.addEventListener('click', function(e){
     var a = e.target.closest('a');
     if(!a) return;
     var href = a.getAttribute('href');
     if(!href) return;
-    if(/^(https?:|\/\/|mailto:|tel:|javascript:|#)/.test(href)) return;
+    if(/^(mailto:|tel:|javascript:|#)/.test(href)) return;
+    // For absolute or protocol-relative URLs, only intercept same-domain links
+    if(/^https?:/.test(href) || href.startsWith('//')) {
+      try {
+        var url = new URL(href.startsWith('//') ? 'https:' + href : href);
+        var hHost = url.hostname.replace(/^www\\./, '');
+        var bHost = baseDomain.replace(/^www\\./, '');
+        if (hHost !== bHost) return;
+        href = url.pathname;
+      } catch(err) { return; }
+    }
     e.preventDefault();
     window.parent.postMessage({type:'webedit-navigate',href:href},'*');
   }, true);

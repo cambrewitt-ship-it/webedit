@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import MessageBubble, { TypingIndicator, Message } from "./MessageBubble";
-import { Send, Camera, X, ChevronDown, MousePointer } from "lucide-react";
+import { Camera, X, ChevronDown, MousePointer } from "lucide-react";
 import { Page } from "@/config/clients";
 import { SelectedElement } from "./PreviewPanel";
 
@@ -239,11 +239,11 @@ export default function ChatPanel({
 
       {/* Input area */}
       <div className="px-4 pb-4 pt-2 border-t border-gray-100">
-        <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:border-[#113D79]/50 focus-within:ring-2 focus-within:ring-[#113D79]/10 transition-all">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:border-[#113D79]/50 focus-within:ring-2 focus-within:ring-[#113D79]/10 transition-all">
           {/* Image upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="text-gray-400 hover:text-[#113D79] transition-colors cursor-pointer flex-shrink-0 mb-1"
+            className="text-gray-400 hover:text-[#113D79] transition-colors cursor-pointer flex-shrink-0"
             title="Upload image"
           >
             <Camera size={18} />
@@ -270,10 +270,13 @@ export default function ChatPanel({
           <button
             onClick={handleSend}
             disabled={!inputText.trim() || isLoading || isPlaceholder}
-            className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mb-0.5"
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: "#113D79", color: "white" }}
           >
-            <Send size={14} />
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
           </button>
         </div>
         <p className="text-center text-xs text-gray-400 mt-2">

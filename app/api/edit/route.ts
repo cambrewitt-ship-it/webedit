@@ -2,6 +2,53 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { validatePassword } from "@/config/clients";
 
+const APP_GITHUB_REPO = process.env.APP_GITHUB_REPO;
+const APP_GITHUB_BRANCH = process.env.APP_GITHUB_BRANCH ?? "main";
+const USAGE_FILE = "data/usage.json";
+
+async function recordUsage(clientId: string, model: string, inputTokens: number, outputTokens: number) {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token || !APP_GITHUB_REPO) return;
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+
+    const getRes = await fetch(
+      `https://api.github.com/repos/${APP_GITHUB_REPO}/contents/${USAGE_FILE}?ref=${APP_GITHUB_BRANCH}`,
+      { headers }
+    );
+    if (!getRes.ok) return;
+
+    const file = await getRes.json();
+    const current = JSON.parse(Buffer.from(file.content, "base64").toString("utf-8"));
+
+    const entry = { clientId, timestamp: new Date().toISOString(), model, inputTokens, outputTokens };
+    const updated = [...current, entry];
+    const content = Buffer.from(JSON.stringify(updated, null, 2) + "\n", "utf-8").toString("base64");
+
+    await fetch(
+      `https://api.github.com/repos/${APP_GITHUB_REPO}/contents/${USAGE_FILE}`,
+      {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          message: `Log usage: ${clientId}`,
+          content,
+          sha: file.sha,
+          branch: APP_GITHUB_BRANCH,
+        }),
+      }
+    );
+  } catch {
+    // Best-effort — never block the response
+  }
+}
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -119,6 +166,9 @@ export async function POST(request: NextRequest) {
       system: SYSTEM_PROMPT,
       messages: trimmedHistory,
     });
+
+    // Record usage (best-effort, non-blocking)
+    recordUsage(clientId, response.model, response.usage.input_tokens, response.usage.output_tokens);
 
     const rawText = response.content[0].type === "text" ? response.content[0].text : "";
 
