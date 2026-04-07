@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getClient, validatePassword } from "@/config/clients";
+import { getIronSession } from "iron-session";
+import { cookies } from "next/headers";
+import { getClient } from "@/config/clients";
+import { sessionOptions, SessionData } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { clientId, password, filename } = body;
-
-    if (!validatePassword(clientId, password)) {
+    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+    if (!session.clientId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const body = await request.json();
+    const { filename } = body;
+
+    // Clients can only fetch pages for their own account
+    const clientId = session.clientId;
     const client = getClient(clientId);
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });

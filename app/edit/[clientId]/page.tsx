@@ -88,7 +88,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   const { clientId } = use(params);
   const client = getClient(clientId);
 
-  const [password, setPassword] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -187,25 +187,17 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     }
   }, []);
 
-  // Auto-login from session saved by the home page LoginPanel
+  // Check for existing server-side session on mount
   useEffect(() => {
-    if (password) {
-      setCheckingSession(false);
-      return;
-    }
-    try {
-      const stored = sessionStorage.getItem("webedit_session");
-      if (stored) {
-        const { clientId: storedId, password: storedPw } = JSON.parse(stored);
-        if (storedId === clientId) {
-          handlePasswordSubmit(storedPw).finally(() => setCheckingSession(false));
-          return;
+    fetch("/api/session")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.clientId === clientId) {
+          setIsAuthenticated(true);
         }
-      }
-    } catch {
-      // ignore malformed session data
-    }
-    setCheckingSession(false);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingSession(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -217,7 +209,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       body: JSON.stringify({ clientId, password: pw }),
     });
     if (res.ok) {
-      setPassword(pw);
+      setIsAuthenticated(true);
     } else {
       setAuthError(true);
     }
@@ -225,13 +217,13 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // ---------- GitHub fetch ----------
 
-  const fetchPage = useCallback(async (filename: string, pw: string) => {
+  const fetchPage = useCallback(async (filename: string) => {
     setIsPlaceholder(true);
     try {
       const res = await fetch("/api/fetch-page", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, password: pw, filename }),
+        body: JSON.stringify({ filename }),
       });
       if (!res.ok) {
         let errMessage = `Failed to fetch page: ${res.status} ${res.statusText}`;
@@ -266,11 +258,11 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // Load initial page after auth
   useEffect(() => {
-    if (password && client) {
-      fetchPage(client.pages[0].filename, password);
+    if (isAuthenticated && client) {
+      fetchPage(client.pages[0].filename);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [password]);
+  }, [isAuthenticated]);
 
   // ---------- File upload handlers ----------
 
@@ -389,8 +381,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   function handlePageChange(filename: string) {
     if (filename === activePage) return;
     // If this page hasn't been fetched from GitHub yet, fetch it
-    if (!htmlMap[filename] && password && !sessionPages) {
-      fetchPage(filename, password);
+    if (!htmlMap[filename] && isAuthenticated && !sessionPages) {
+      fetchPage(filename);
     }
     setActivePage(filename);
     setMessages([]);
@@ -408,7 +400,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   }
 
   async function handleSendMessage(text: string) {
-    if (!password || isLoading || isPlaceholder || !currentHtml) return;
+    if (!isAuthenticated || isLoading || isPlaceholder || !currentHtml) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -431,8 +423,6 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId,
-          password,
           currentHtml,
           userMessage: text,
           imageBase64: imageToSend?.data ?? null,
@@ -484,7 +474,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   // ---------- Push ----------
 
   async function handlePush() {
-    if (!password || !hasChanges || isPushing) return;
+    if (!isAuthenticated || !hasChanges || isPushing) return;
 
     setIsPushing(true);
     setPushError(null);
@@ -507,7 +497,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, password, filename: activePage, html: currentHtml }),
+        body: JSON.stringify({ filename: activePage, html: currentHtml }),
       });
 
       const data = await res.json();
@@ -574,7 +564,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     return null;
   }
 
-  if (!password) {
+  if (!isAuthenticated) {
     return (
       <PasswordGate
         clientName={client.name}
@@ -692,10 +682,9 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       </div>
 
       {/* Buy credits modal */}
-      {showBuyCredits && password && (
+      {showBuyCredits && isAuthenticated && (
         <BuyCreditsModal
           clientId={clientId}
-          password={password}
           usedTokens={budgetInfo?.usedTokens}
           budgetTokens={budgetInfo?.budgetTokens}
           onClose={() => setShowBuyCredits(false)}

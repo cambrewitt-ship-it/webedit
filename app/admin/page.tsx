@@ -32,6 +32,7 @@ interface ClientUsage {
 }
 
 export default function AdminPage() {
+  const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -51,15 +52,15 @@ export default function AdminPage() {
   const [pages, setPages] = useState<Page[]>(DEFAULT_PAGES);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [newClient, setNewClient] = useState<Client | null>(null);
+  const [newClient, setNewClient] = useState<{ id: string; password: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const appUrl = typeof window !== "undefined" ? `${window.location.protocol}//${window.location.host}` : "";
 
-  const fetchData = useCallback(async (pw: string) => {
+  const fetchData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const res = await fetch("/api/admin", { headers: { "x-admin-password": pw } });
+      const res = await fetch("/api/admin");
       if (res.ok) {
         const data = await res.json();
         setClients(data.clients);
@@ -70,30 +71,42 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Check for existing admin session on mount
   useEffect(() => {
-    // Auto-login if redirected from home page
-    try {
-      const stored = sessionStorage.getItem("webedit_admin");
-      if (stored) {
-        const { password: pw } = JSON.parse(stored);
-        fetch("/api/admin", { headers: { "x-admin-password": pw } }).then((res) => {
-          if (res.ok) { setAdminPassword(pw); setAuthed(true); }
-        });
-      }
-    } catch {}
+    fetch("/api/session")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.admin) {
+          setAuthed(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (authed) fetchData(adminPassword);
-  }, [authed, adminPassword, fetchData]);
+    if (authed) fetchData();
+  }, [authed, fetchData]);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setAuthError(false);
-    fetch("/api/admin", { headers: { "x-admin-password": adminPassword } }).then((res) => {
-      if (res.ok) setAuthed(true);
-      else setAuthError(true);
+    const res = await fetch("/api/admin-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: adminEmail, password: adminPassword }),
     });
+    if (res.ok) {
+      setAuthed(true);
+    } else {
+      setAuthError(true);
+    }
+  }
+
+  async function handleSignOut() {
+    await fetch("/api/logout", { method: "POST" });
+    setAuthed(false);
+    setAdminEmail("");
+    setAdminPassword("");
   }
 
   async function handleResetPassword(clientId: string) {
@@ -102,13 +115,12 @@ export default function AdminPage() {
     setResetLoading((p) => ({ ...p, [clientId]: true }));
     const res = await fetch("/api/admin", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-password": adminPassword },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: clientId, password: newPw }),
     });
     setResetLoading((p) => ({ ...p, [clientId]: false }));
     if (res.ok) {
       setResetDone((p) => ({ ...p, [clientId]: true }));
-      setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, password: newPw } : c));
       setTimeout(() => setResetDone((p) => ({ ...p, [clientId]: false })), 2500);
     }
   }
@@ -129,16 +141,17 @@ export default function AdminPage() {
     const id = slugify(form.name);
     const res = await fetch("/api/admin", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": adminPassword },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, id, pages }),
     });
     const data = await res.json();
     setSubmitting(false);
     if (!res.ok) { setSubmitError(data.error ?? "Something went wrong"); return; }
-    setNewClient(data.client);
+    // data.client.password is the plaintext password returned once for display
+    setNewClient({ id: data.client.id, password: data.client.password });
     setForm({ name: "", domain: "", email: "", password: "", githubRepo: "", githubBranch: "main" });
     setPages(DEFAULT_PAGES);
-    fetchData(adminPassword);
+    fetchData();
   }
 
   async function handleDelete(id: string) {
@@ -146,11 +159,11 @@ export default function AdminPage() {
     setDeletingId(id);
     await fetch("/api/admin", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", "x-admin-password": adminPassword },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
     setDeletingId(null);
-    fetchData(adminPassword);
+    fetchData();
   }
 
   // Aggregate usage per client
@@ -177,14 +190,23 @@ export default function AdminPage() {
           </div>
           <p className="text-gray-400 text-sm mb-8">OneOneThree Digital</p>
           <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <input
+              type="email"
+              placeholder="Admin email"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              required
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#113D79]"
+              autoFocus
+            />
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Admin password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
+                required
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:border-[#113D79]"
-                autoFocus
               />
               <button
                 type="button"
@@ -204,7 +226,7 @@ export default function AdminPage() {
                 )}
               </button>
             </div>
-            {authError && <p className="text-red-500 text-sm text-center">Incorrect password</p>}
+            {authError && <p className="text-red-500 text-sm text-center">Incorrect email or password</p>}
             <button type="submit" className="w-full py-3 rounded-xl text-white font-semibold text-sm" style={{ background: "#113D79" }}>
               Sign in
             </button>
@@ -223,7 +245,7 @@ export default function AdminPage() {
         </span>
         <div className="flex items-center gap-4">
           <span className="text-white/50 text-sm">Total API spend: <span className="text-white font-semibold">{fmtNzd(totalCostNzd)}</span></span>
-          <button onClick={() => { setAuthed(false); setAdminPassword(""); sessionStorage.removeItem("webedit_admin"); }} className="text-white/60 hover:text-white text-sm">
+          <button onClick={handleSignOut} className="text-white/60 hover:text-white text-sm">
             Sign out
           </button>
         </div>
@@ -280,10 +302,6 @@ export default function AdminPage() {
                         </a>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="text-right">
-                          <p className="text-xs text-gray-400">Current password</p>
-                          <p className="text-sm font-mono font-semibold text-gray-700">{c.password}</p>
-                        </div>
                         {usageByClient[c.id] && (
                           <div className="text-right border-l border-gray-100 pl-3">
                             <p className="text-xs text-gray-400">API spend</p>

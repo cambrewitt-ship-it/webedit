@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { getClient, validatePassword } from "@/config/clients";
+import { getIronSession } from "iron-session";
+import { cookies } from "next/headers";
+import { getClient } from "@/config/clients";
+import { sessionOptions, SessionData } from "@/lib/session";
 
 // Pricing constants — must stay in sync with admin/page.tsx
 const INPUT_COST_PER_TOKEN = 3.0 / 1_000_000;   // $3 per million input tokens
@@ -134,12 +137,14 @@ function restoreBase64Images(html: string, map: Record<string, string>): string 
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { clientId, password, currentHtml, userMessage, imageBase64, imageMediaType, selectedElementHtml, selectedElementLabel, history } = body;
-
-    if (!validatePassword(clientId, password)) {
+    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+    if (!session.clientId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const clientId = session.clientId;
+
+    const body = await request.json();
+    const { currentHtml, userMessage, imageBase64, imageMediaType, selectedElementHtml, selectedElementLabel, history } = body;
 
     if (!currentHtml || !userMessage) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

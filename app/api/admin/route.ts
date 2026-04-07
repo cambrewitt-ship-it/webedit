@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Client } from "@/config/clients";
+import { getIronSession } from "iron-session";
+import { cookies } from "next/headers";
+import { Client, hashPassword } from "@/config/clients";
+import { sessionOptions, SessionData } from "@/lib/session";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const APP_GITHUB_REPO = process.env.APP_GITHUB_REPO;
 const APP_GITHUB_BRANCH = process.env.APP_GITHUB_BRANCH ?? "main";
 const CLIENTS_FILE = "data/clients.json";
@@ -9,6 +11,11 @@ const USAGE_FILE = "data/usage.json";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+async function requireAdmin() {
+  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+  return session.admin === true;
 }
 
 async function ghFetch(path: string, options?: RequestInit) {
@@ -43,9 +50,8 @@ async function writeJsonFile(filePath: string, data: unknown, sha: string, messa
 }
 
 // GET /api/admin — list clients + optionally usage
-export async function GET(request: NextRequest) {
-  const pw = request.headers.get("x-admin-password");
-  if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
+export async function GET() {
+  if (!await requireAdmin()) return unauthorized();
 
   const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
   if (!clientsFile) {
@@ -55,13 +61,14 @@ export async function GET(request: NextRequest) {
   const usageFile = await readJsonFile<UsageEntry[]>(USAGE_FILE);
   const usage = usageFile?.data ?? [];
 
-  return NextResponse.json({ clients: clientsFile.data, usage });
+  // Never send password hashes to the frontend
+  const sanitized = clientsFile.data.map(({ password: _pw, ...c }) => c);
+  return NextResponse.json({ clients: sanitized, usage });
 }
 
 // POST /api/admin — create a new client
 export async function POST(request: NextRequest) {
-  const pw = request.headers.get("x-admin-password");
-  if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
+  if (!await requireAdmin()) return unauthorized();
   if (!APP_GITHUB_REPO) return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
 
   const body = await request.json();
@@ -81,10 +88,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Client with id "${id}" already exists` }, { status: 409 });
   }
 
+  const passwordHash = await hashPassword(password);
+
   const newClient: Client = {
     id, name, domain,
     ...(email ? { email } : {}),
-    password,
+    password: passwordHash,
     githubRepo,
     githubBranch: githubBranch ?? "main",
     pages: pages!,
@@ -96,13 +105,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `GitHub write failed: ${(await putRes.text()).slice(0, 200)}` }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, client: newClient });
+  // Return client without the hash
+  const { password: _pw, ...clientSafe } = newClient;
+  return NextResponse.json({ success: true, client: { ...clientSafe, password } });
 }
 
 // PATCH /api/admin — reset a client's password
 export async function PATCH(request: NextRequest) {
-  const pw = request.headers.get("x-admin-password");
-  if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
+  if (!await requireAdmin()) return unauthorized();
   if (!APP_GITHUB_REPO) return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
 
   const { id, password: newPassword } = await request.json();
@@ -114,7 +124,8 @@ export async function PATCH(request: NextRequest) {
   const idx = clientsFile.data.findIndex((c) => c.id === id);
   if (idx === -1) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
-  const updated = clientsFile.data.map((c) => c.id === id ? { ...c, password: newPassword } : c);
+  const newHash = await hashPassword(newPassword);
+  const updated = clientsFile.data.map((c) => c.id === id ? { ...c, password: newHash } : c);
   const putRes = await writeJsonFile(CLIENTS_FILE, updated, clientsFile.sha, `Reset password for client: ${id}`);
   if (!putRes.ok) {
     return NextResponse.json({ error: `GitHub write failed: ${(await putRes.text()).slice(0, 200)}` }, { status: 500 });
@@ -125,8 +136,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/admin — remove a client
 export async function DELETE(request: NextRequest) {
-  const pw = request.headers.get("x-admin-password");
-  if (!ADMIN_PASSWORD || pw !== ADMIN_PASSWORD) return unauthorized();
+  if (!await requireAdmin()) return unauthorized();
   if (!APP_GITHUB_REPO) return NextResponse.json({ error: "APP_GITHUB_REPO env var not set" }, { status: 500 });
 
   const { id } = await request.json();

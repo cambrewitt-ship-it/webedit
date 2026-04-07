@@ -4,7 +4,7 @@
     "name": "OneOneThree Digital",
     "domain": "oneonethree.co.nz",
     "email": "cam@oneonethree.co.nz",
-    "password": "oot2025",
+    "password": "$2b$10$uAsn.7QMFWWWNUtfWNxPIuKTHKA9Q8H15.Gad6QdJnJ1v1dVQxFV2",
     "githubRepo": "cambrewitt-ship-it/oneonethree-website",
     "githubBranch": "main",
     "pages": [
@@ -20,7 +20,7 @@
     "id": "wellington-plumbing",
     "name": "Wellington Plumbing Co.",
     "domain": "wellingtonplumbing.co.nz",
-    "password": "plumbing2025",
+    "password": "$2b$10$uRX83bpr72fIdvS5j8QLQuYRykZK52WzqamXBPHZev7jTZ0pibuka",
     "githubRepo": "oneone113/wellington-plumbing",
     "githubBranch": "main",
     "pages": [

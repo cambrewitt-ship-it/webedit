@@ -6,7 +6,6 @@ import { CREDIT_PACKS } from "@/config/packs";
 
 interface BuyCreditsModalProps {
   clientId: string;
-  password: string;
   usedTokens?: number;
   budgetTokens?: number;
   onClose: () => void;
@@ -14,7 +13,6 @@ interface BuyCreditsModalProps {
 
 export default function BuyCreditsModal({
   clientId,
-  password,
   usedTokens,
   budgetTokens,
   onClose,
@@ -29,7 +27,7 @@ export default function BuyCreditsModal({
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, password, packId }),
+        body: JSON.stringify({ clientId, packId }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Failed to create checkout");

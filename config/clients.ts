@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import clientsData from "@/data/clients.json";
 
 export interface Page {
@@ -24,8 +25,12 @@ export function getClient(id: string): Client | undefined {
   return clients.find((c) => c.id === id);
 }
 
-export function validatePassword(clientId: string, password: string): boolean {
+export async function validatePassword(clientId: string, password: string): Promise<boolean> {
   const client = getClient(clientId);
   if (!client) return false;
-  return client.password === password;
+  return bcrypt.compare(password, client.password);
+}
+
+export function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
 }

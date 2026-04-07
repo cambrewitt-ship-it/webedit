@@ -23,7 +23,6 @@ export default function LoginPanel({ clients }: { clients: Client[] }) {
     });
 
     if (adminRes.ok) {
-      sessionStorage.setItem("webedit_admin", JSON.stringify({ password }));
       window.location.href = "/admin";
       return;
     }
@@ -46,10 +45,6 @@ export default function LoginPanel({ clients }: { clients: Client[] }) {
     });
 
     if (res.ok) {
-      sessionStorage.setItem(
-        "webedit_session",
-        JSON.stringify({ clientId: client.id, password })
-      );
       window.location.href = `/edit/${client.id}`;
     } else {
       setError("Incorrect email or password. Please try again.");
