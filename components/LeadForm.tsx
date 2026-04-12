@@ -22,6 +22,8 @@ export default function LeadForm() {
       });
       if (res.ok) {
         setSubmitted(true);
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: "free_quote_submit" });
       } else {
         console.error("Formspree error", await res.text());
       }
