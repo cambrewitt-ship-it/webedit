@@ -14,6 +14,13 @@ export default function LeadForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+
+    // Fire GTM event at submit time so it's always captured
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).dataLayer = (window as any).dataLayer || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).dataLayer.push({ event: "free_quote_submit" });
+
     try {
       const res = await fetch("https://formspree.io/f/xgondvne", {
         method: "POST",
@@ -22,8 +29,8 @@ export default function LeadForm() {
       });
       if (res.ok) {
         setSubmitted(true);
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({ event: "free_quote_submit" });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).dataLayer.push({ event: "free_quote_submit_success" });
       } else {
         console.error("Formspree error", await res.text());
       }
@@ -35,7 +42,7 @@ export default function LeadForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 px-6 py-8 text-center">
+      <div id="form-success-message" className="rounded-2xl border border-green-200 bg-green-50 px-6 py-8 text-center">
         <div className="mb-3 text-3xl">✓</div>
         <p className="font-semibold text-green-800">
           Thanks, {form.name}! We&apos;ll be in touch within 24 hours.
