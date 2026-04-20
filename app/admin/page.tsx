@@ -4,6 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { Client, Page } from "@/config/clients";
 import { UsageEntry } from "@/app/api/admin/route";
 
+interface ResellerRecord {
+  id: string;
+  name: string;
+  businessName: string;
+  email: string;
+  brandName: string;
+  brandLogo?: string;
+  status: "pending" | "active";
+  clients: string[];
+  createdAt: string;
+}
+
 // Pricing constants (Claude Sonnet, USD → NZD)
 const INPUT_COST_PER_TOKEN_USD = 3.0 / 1_000_000;
 const OUTPUT_COST_PER_TOKEN_USD = 15.0 / 1_000_000;
@@ -41,7 +53,16 @@ export default function AdminPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [usage, setUsage] = useState<UsageEntry[]>([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [activeTab, setActiveTab] = useState<"clients" | "usage" | "add">("clients");
+  const [activeTab, setActiveTab] = useState<"clients" | "usage" | "add" | "resellers">("clients");
+
+  // Reseller state
+  const [resellers, setResellers] = useState<ResellerRecord[]>([]);
+  const [loadingResellers, setLoadingResellers] = useState(false);
+  const [approvedReseller, setApprovedReseller] = useState<{ id: string; name: string; password: string } | null>(null);
+  const [newReseller, setNewReseller] = useState<{ id: string; businessName: string; password: string } | null>(null);
+  const [resellerForm, setResellerForm] = useState({ name: "", businessName: "", email: "", brandName: "" });
+  const [resellerSubmitting, setResellerSubmitting] = useState(false);
+  const [resellerError, setResellerError] = useState<string | null>(null);
 
   // Password reset state per client
   const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
@@ -71,6 +92,19 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchResellers = useCallback(async () => {
+    setLoadingResellers(true);
+    try {
+      const res = await fetch("/api/admin/resellers");
+      if (res.ok) {
+        const data = await res.json();
+        setResellers(data.resellers ?? []);
+      }
+    } finally {
+      setLoadingResellers(false);
+    }
+  }, []);
+
   // Check for existing admin session on mount
   useEffect(() => {
     fetch("/api/session")
@@ -84,8 +118,8 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (authed) fetchData();
-  }, [authed, fetchData]);
+    if (authed) { fetchData(); fetchResellers(); }
+  }, [authed, fetchData, fetchResellers]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -152,6 +186,47 @@ export default function AdminPage() {
     setForm({ name: "", domain: "", email: "", password: "", githubRepo: "", githubBranch: "main" });
     setPages(DEFAULT_PAGES);
     fetchData();
+  }
+
+  async function handleApproveReseller(reseller: ResellerRecord) {
+    if (!confirm(`Approve ${reseller.businessName}? This will generate a login password.`)) return;
+    const res = await fetch("/api/admin/resellers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: reseller.id, action: "approve" }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setApprovedReseller({ id: reseller.id, name: reseller.businessName, password: data.password });
+      fetchResellers();
+    }
+  }
+
+  async function handleDeleteReseller(id: string) {
+    if (!confirm(`Remove reseller "${id}"? Their clients will remain but be unlinked.`)) return;
+    await fetch("/api/admin/resellers", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchResellers();
+  }
+
+  async function handleCreateReseller(e: React.FormEvent) {
+    e.preventDefault();
+    setResellerSubmitting(true);
+    setResellerError(null);
+    const res = await fetch("/api/admin/resellers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(resellerForm),
+    });
+    const data = await res.json();
+    setResellerSubmitting(false);
+    if (!res.ok) { setResellerError(data.error ?? "Something went wrong"); return; }
+    setNewReseller({ id: data.reseller.id, businessName: data.reseller.businessName, password: data.reseller.password });
+    setResellerForm({ name: "", businessName: "", email: "", brandName: "" });
+    fetchResellers();
   }
 
   async function handleDelete(id: string) {
@@ -253,7 +328,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 bg-white px-6 flex gap-1">
-        {(["clients", "usage", "add"] as const).map((tab) => (
+        {(["clients", "usage", "add", "resellers"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -261,7 +336,7 @@ export default function AdminPage() {
               activeTab === tab ? "border-[#113D79] text-[#113D79]" : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            {tab === "add" ? "Add Client" : tab === "usage" ? "API Usage & Costs" : "Clients"}
+            {tab === "add" ? "Add Client" : tab === "usage" ? "API Usage & Costs" : tab === "resellers" ? `Partners ${resellers.filter(r => r.status === "pending").length > 0 ? `(${resellers.filter(r => r.status === "pending").length} pending)` : ""}` : "Clients"}
           </button>
         ))}
       </div>
@@ -491,6 +566,115 @@ export default function AdminPage() {
             </form>
           </section>
         )}
+
+        {/* ── RESELLERS TAB ─────────────────────────────────── */}
+        {activeTab === "resellers" && (
+          <section className="space-y-8">
+            {approvedReseller && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
+                <p className="font-semibold text-green-800 mb-2">Partner approved! Send these credentials to {approvedReseller.name}:</p>
+                <div className="text-sm font-mono bg-white rounded-xl p-3 border border-green-100 space-y-1">
+                  <p><span className="text-gray-400">Login: </span><a href="/partner" className="text-blue-600 underline">{appUrl}/partner</a></p>
+                  <p><span className="text-gray-400">Password: </span><strong>{approvedReseller.password}</strong></p>
+                </div>
+                <button onClick={() => setApprovedReseller(null)} className="mt-2 text-xs text-green-700 underline">Dismiss</button>
+              </div>
+            )}
+
+            {newReseller && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
+                <p className="font-semibold text-green-800 mb-2">Partner created! Send these credentials to {newReseller.businessName}:</p>
+                <div className="text-sm font-mono bg-white rounded-xl p-3 border border-green-100 space-y-1">
+                  <p><span className="text-gray-400">Login: </span><a href="/partner" className="text-blue-600 underline">{appUrl}/partner</a></p>
+                  <p><span className="text-gray-400">Password: </span><strong>{newReseller.password}</strong></p>
+                </div>
+                <button onClick={() => setNewReseller(null)} className="mt-2 text-xs text-green-700 underline">Dismiss</button>
+              </div>
+            )}
+
+            {resellers.filter(r => r.status === "pending").length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Pending Applications</h2>
+                <div className="space-y-3">
+                  {resellers.filter(r => r.status === "pending").map((r) => (
+                    <div key={r.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-gray-800">{r.businessName}</p>
+                        <p className="text-sm text-gray-500">{r.name} · {r.email}</p>
+                        <p className="text-xs text-gray-400 mt-1">Applied {new Date(r.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button onClick={() => handleApproveReseller(r)} className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "#113D79" }}>
+                          Approve
+                        </button>
+                        <button onClick={() => handleDeleteReseller(r.id)} className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-600">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Active Partners</h2>
+              {loadingResellers ? (
+                <p className="text-gray-400 text-sm">Loading…</p>
+              ) : resellers.filter(r => r.status === "active").length === 0 ? (
+                <p className="text-gray-400 text-sm">No active partners yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {resellers.filter(r => r.status === "active").map((r) => (
+                    <div key={r.id} className="bg-white rounded-2xl border border-gray-200 p-5 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-gray-800">{r.businessName}</p>
+                        <p className="text-sm text-gray-500">{r.name} · {r.email}</p>
+                        <p className="text-xs text-gray-400 mt-1">Brand: {r.brandName} · {r.clients.length} client{r.clients.length !== 1 ? "s" : ""}</p>
+                      </div>
+                      <button onClick={() => handleDeleteReseller(r.id)} className="text-xs text-red-400 hover:text-red-600 flex-shrink-0">
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Partner Manually</h2>
+              <form onSubmit={handleCreateReseller} className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Contact Name *</label>
+                    <input required value={resellerForm.name} onChange={(e) => setResellerForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="Alex Johnson" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#113D79]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Business Name *</label>
+                    <input required value={resellerForm.businessName} onChange={(e) => setResellerForm(f => ({ ...f, businessName: e.target.value }))}
+                      placeholder="Tradie Web Co" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#113D79]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Email *</label>
+                    <input required type="email" value={resellerForm.email} onChange={(e) => setResellerForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="alex@tradieweb.co" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#113D79]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Brand Name (editor label)</label>
+                    <input value={resellerForm.brandName} onChange={(e) => setResellerForm(f => ({ ...f, brandName: e.target.value }))}
+                      placeholder="Tradie Web Co (defaults to business name)" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#113D79]" />
+                  </div>
+                </div>
+                {resellerError && <p className="text-red-500 text-sm">{resellerError}</p>}
+                <button type="submit" disabled={resellerSubmitting} className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50" style={{ background: "#113D79" }}>
+                  {resellerSubmitting ? "Creating…" : "Create Partner"}
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
+
       </div>
     </div>
   );

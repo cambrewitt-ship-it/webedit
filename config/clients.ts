@@ -17,6 +17,12 @@ export interface Client {
   pages: Page[];
   /** API dollar budget — defaults to $15.00 (base plan) if not set */
   dollarBudget?: number;
+  /** Set when this client is managed by a reseller partner */
+  resellerId?: string;
+  /** Reseller's brand name — shown in editor header instead of "WebEdit" */
+  resellerBrandName?: string;
+  /** Reseller's brand logo URL — shown in editor header (optional) */
+  resellerBrandLogo?: string;
 }
 
 export const clients: Client[] = clientsData as Client[];

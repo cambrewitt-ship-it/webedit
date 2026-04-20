@@ -3,6 +3,7 @@ import { SessionOptions } from "iron-session";
 export interface SessionData {
   clientId?: string;
   admin?: boolean;
+  resellerId?: string;
 }
 
 export const sessionOptions: SessionOptions = {

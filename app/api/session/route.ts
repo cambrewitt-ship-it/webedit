@@ -8,5 +8,6 @@ export async function GET() {
   return NextResponse.json({
     clientId: session.clientId ?? null,
     admin: session.admin ?? false,
+    resellerId: session.resellerId ?? null,
   });
 }

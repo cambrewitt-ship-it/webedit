@@ -93,17 +93,41 @@ export default function ChatPanel({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 4 * 1024 * 1024) {
-      alert("Image must be under 4MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      alert("Image must be under 20MB.");
+      e.target.value = "";
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (ev) => {
       const result = ev.target?.result as string;
-      // Strip data URL prefix to get raw base64
-      const base64 = result.split(",")[1];
-      onImageUpload({ data: base64, name: file.name, type: file.type });
+      const img = new Image();
+      img.onload = () => {
+        // Compress to fit within 1600px and ~1MB
+        const MAX_DIM = 1600;
+        const MAX_BYTES = 1 * 1024 * 1024;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const scale = MAX_DIM / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+
+        // Try quality 0.85 first, drop to 0.6 if still too big
+        let dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        if (dataUrl.length * 0.75 > MAX_BYTES) {
+          dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        }
+
+        const base64 = dataUrl.split(",")[1];
+        onImageUpload({ data: base64, name: file.name, type: "image/jpeg" });
+      };
+      img.src = result;
     };
     reader.readAsDataURL(file);
     // Reset so same file can be picked again

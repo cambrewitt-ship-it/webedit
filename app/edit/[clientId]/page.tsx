@@ -157,6 +157,43 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // Push state
   const [isPushing, setIsPushing] = useState(false);
+
+  // Password change modal
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+  const [changePasswordDone, setChangePasswordDone] = useState(false);
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setChangePasswordError(null);
+    if (newPassword !== confirmPassword) {
+      setChangePasswordError("Passwords don't match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setChangePasswordError("Password must be at least 6 characters.");
+      return;
+    }
+    setChangingPassword(true);
+    const res = await fetch("/api/client/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword }),
+    });
+    setChangingPassword(false);
+    if (res.ok) {
+      setChangePasswordDone(true);
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => { setShowChangePassword(false); setChangePasswordDone(false); }, 2000);
+    } else {
+      const data = await res.json();
+      setChangePasswordError(data.error ?? "Failed to update password.");
+    }
+  }
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [budgetInfo, setBudgetInfo] = useState<{ usedTokens: number; budgetTokens: number } | null>(null);
   const [pushStep, setPushStep] = useState("");
@@ -433,7 +470,16 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         }),
       });
 
-      const data = await res.json();
+      let data: { error?: string; usedTokens?: number; budgetTokens?: number; message?: string; html?: string };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          res.status === 413
+            ? "Image is too large to upload. Please use a smaller image (under 2MB)."
+            : `Server error (${res.status}). Please try again.`
+        );
+      }
 
       // Budget exceeded — show upgrade modal instead of an error message
       if (res.status === 402 && data.error === "BUDGET_EXCEEDED") {
@@ -583,14 +629,26 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="text-base text-white tracking-wide" style={{ fontFamily: "Inter, sans-serif" }}>
-              <span className="font-bold">WebEdit</span> by
-            </span>
-            <img
-              src="/Logo_Drafts__1_-removebg-preview.png"
-              alt="113 Digital"
-              className="h-8 w-auto"
-            />
+            {client.resellerBrandName ? (
+              <>
+                {client.resellerBrandLogo ? (
+                  <img src={client.resellerBrandLogo} alt={client.resellerBrandName} className="h-8 w-auto object-contain" />
+                ) : (
+                  <span className="text-base font-bold text-white tracking-wide">{client.resellerBrandName}</span>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="text-base text-white tracking-wide" style={{ fontFamily: "Inter, sans-serif" }}>
+                  <span className="font-bold">WebEdit</span> by
+                </span>
+                <img
+                  src="/Logo_Drafts__1_-removebg-preview.png"
+                  alt="113 Digital"
+                  className="h-8 w-auto"
+                />
+              </>
+            )}
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-2">
@@ -630,13 +688,77 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           </div>
         )}
 
-        <PushButton
-          hasChanges={hasChanges}
-          isPushing={isPushing}
-          pushStep={pushStep}
-          onPush={handlePush}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowChangePassword(true)}
+            title="Change your password"
+            className="text-xs text-white/50 hover:text-white/80 transition-colors hidden sm:block"
+          >
+            Change password
+          </button>
+          <PushButton
+            hasChanges={hasChanges}
+            isPushing={isPushing}
+            pushStep={pushStep}
+            onPush={handlePush}
+          />
+        </div>
       </header>
+
+      {/* Change Password Modal */}
+      {showChangePassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-gray-800">Change Password</h3>
+              <button onClick={() => { setShowChangePassword(false); setChangePasswordError(null); setNewPassword(""); setConfirmPassword(""); }}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+            {changePasswordDone ? (
+              <div className="text-center py-4">
+                <div className="text-4xl mb-3">✓</div>
+                <p className="text-gray-700 font-medium">Password updated!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">New password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    autoFocus
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#113D79]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Confirm new password</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#113D79]"
+                  />
+                </div>
+                {changePasswordError && <p className="text-red-500 text-sm">{changePasswordError}</p>}
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50"
+                  style={{ background: "#113D79" }}
+                >
+                  {changingPassword ? "Saving…" : "Update password"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main panels */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
