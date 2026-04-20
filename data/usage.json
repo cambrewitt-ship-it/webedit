@@ -12,5 +12,12 @@
     "model": "claude-sonnet-4-6",
     "inputTokens": 13326,
     "outputTokens": 75
+  },
+  {
+    "clientId": "oneonethree",
+    "timestamp": "2026-04-20T05:15:58.806Z",
+    "model": "claude-sonnet-4-6",
+    "inputTokens": 14810,
+    "outputTokens": 200
   }
 ]
