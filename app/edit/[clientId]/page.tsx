@@ -496,12 +496,12 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: data.message,
+          content: data.message ?? "",
           timestamp: new Date(),
         },
       ]);
       pushUndo(activePage, currentHtml);
-      setCurrentHtml(data.html);
+      setCurrentHtml(data.html ?? "");
     } catch (err: unknown) {
       setMessages((prev) => [
         ...prev,
