@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "GitHub token not configured" }, { status: 500 });
     }
 
-    const { githubRepo, githubBranch } = client;
+    const githubRepo = client.githubRepo.replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "").trim();
+    const { githubBranch } = client;
     const apiBase = `https://api.github.com/repos/${githubRepo}`;
     const headers = {
       Authorization: `Bearer ${githubToken}`,

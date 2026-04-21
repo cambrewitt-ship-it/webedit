@@ -109,6 +109,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
   const [messages, setMessages] = useState<Message[]>([]);
   const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingPage, setIsFetchingPage] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [pickerMode, setPickerMode] = useState(false);
 
@@ -277,6 +278,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   const fetchPage = useCallback(async (filename: string) => {
     setIsPlaceholder(true);
+    setIsFetchingPage(true);
     try {
       const res = await fetch("/api/fetch-page", {
         method: "POST",
@@ -299,8 +301,8 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
             timestamp: new Date(),
           },
         ]);
-        // keep placeholder state when fetch fails, so chat remains disabled until valid HTML is loaded
         setIsPlaceholder(true);
+        setIsFetchingPage(false);
         return;
       }
 
@@ -308,9 +310,11 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       setHtmlMap((prev) => ({ ...prev, [filename]: data.html }));
       setSavedHtmlMap((prev) => ({ ...prev, [filename]: data.html }));
       setIsPlaceholder(false);
+      setIsFetchingPage(false);
     } catch (err) {
       console.error("Failed to fetch page:", err);
       setIsPlaceholder(true);
+      setIsFetchingPage(false);
     }
   }, [clientId]);
 
@@ -809,6 +813,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           <PreviewPanel
             html={currentHtml}
             isPlaceholder={isPlaceholder}
+            isFetchingPage={isFetchingPage}
             domain={clientConfig.domain}
             pages={activePagesConfig}
             activePage={activePage}

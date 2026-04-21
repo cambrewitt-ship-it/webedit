@@ -19,6 +19,7 @@ export interface SelectedElement {
 interface PreviewPanelProps {
   html: string;
   isPlaceholder: boolean;
+  isFetchingPage: boolean;
   domain: string;
   pages: Page[];
   activePage: string;
@@ -165,6 +166,7 @@ function injectHelpers(html: string, domain: string): string {
 export default function PreviewPanel({
   html,
   isPlaceholder,
+  isFetchingPage,
   domain,
   pages,
   activePage,
@@ -351,27 +353,50 @@ export default function PreviewPanel({
           </div>
         )}
 
-        {/* Placeholder drop zone */}
+        {/* Placeholder / loading state */}
         {isPlaceholder && !isDragging ? (
-          <div
-            className="flex items-center justify-center h-full cursor-pointer group"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-sm px-8">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 border-2 border-dashed border-gray-300 group-hover:border-[#113D79]/50 group-hover:bg-blue-50 transition-all">
-                <Upload size={28} className="text-gray-400 group-hover:text-[#113D79] transition-colors" />
-              </div>
-              <p className="font-semibold text-gray-700 mb-1 group-hover:text-[#113D79] transition-colors">
-                Drop your website files here
-              </p>
-              <p className="text-sm text-gray-400 mb-4">or click to browse</p>
-              <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
+              {isFetchingPage ? (
+                <>
+                  {/* Loading from GitHub */}
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-blue-50 border border-blue-100">
+                    <div
+                      className="w-8 h-8 border-4 border-blue-100 rounded-full"
+                      style={{ borderTopColor: "#113D79", animation: "spin 0.8s linear infinite" }}
+                    />
+                  </div>
+                  <p className="font-semibold text-gray-700 mb-1">Loading your website…</p>
+                  <p className="text-sm text-gray-400 mb-6">Fetching files from GitHub</p>
+                </>
+              ) : (
+                <>
+                  {/* GitHub not configured or fetch failed */}
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-amber-50 border border-amber-100">
+                    <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                  </div>
+                  <p className="font-semibold text-gray-700 mb-1">GitHub not configured</p>
+                  <p className="text-sm text-gray-400 mb-6">
+                    Could not load from GitHub. Check the repo name and token, or upload your files manually.
+                  </p>
+                </>
+              )}
+
+              {/* Upload option — always shown */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#113D79]/50 hover:bg-blue-50 transition-all text-sm font-medium text-gray-500 hover:text-[#113D79] cursor-pointer"
+              >
+                <Upload size={16} className="transition-colors" />
+                Upload a file instead
+              </button>
+              <div className="flex items-center justify-center gap-3 text-xs text-gray-400 mt-3">
                 <span className="bg-gray-100 px-2 py-1 rounded font-mono">.zip</span>
                 <span className="text-gray-300">—</span>
-                <span>whole site (multiple pages)</span>
-              </div>
-              <div className="flex items-center justify-center gap-3 text-xs text-gray-400 mt-1.5">
-                <span className="bg-gray-100 px-2 py-1 rounded font-mono">.html</span>
+                <span>whole site</span>
+                <span className="bg-gray-100 px-2 py-1 rounded font-mono ml-2">.html</span>
                 <span className="text-gray-300">—</span>
                 <span>single page</span>
               </div>

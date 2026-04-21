@@ -9,6 +9,15 @@ const APP_GITHUB_BRANCH = process.env.APP_GITHUB_BRANCH ?? "main";
 const CLIENTS_FILE = "data/clients.json";
 const USAGE_FILE = "data/usage.json";
 
+/** Accept either "owner/repo" or a full GitHub URL and return "owner/repo" */
+function normalizeGithubRepo(input: string): string {
+  return input
+    .trim()
+    .replace(/^https?:\/\/github\.com\//, "")
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "");
+}
+
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
     ...(email ? { email } : {}),
     password: passwordHash,
     plainPassword: password,
-    githubRepo,
+    githubRepo: normalizeGithubRepo(githubRepo!),
     githubBranch: githubBranch ?? "main",
     pages: pages!,
   };
