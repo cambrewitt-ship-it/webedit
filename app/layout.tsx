@@ -17,6 +17,7 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "WebEdit",
   description: "AI-powered website editor for small business clients",
+  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({

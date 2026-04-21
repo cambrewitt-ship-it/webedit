@@ -214,7 +214,7 @@ export default function Home() {
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-lg font-bold text-gray-800">{step.title}</h3>
                     {i === 1 && (
-                      <img src="/cloudflare-logo.svg" alt="Cloudflare" className="h-5 w-auto" />
+                      <img src="/cloudflare-logo.svg" alt="Cloudflare" className="h-8 w-auto" />
                     )}
                   </div>
                   <p className="text-sm text-gray-500 leading-relaxed">{step.body}</p>
