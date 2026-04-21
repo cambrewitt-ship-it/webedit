@@ -483,7 +483,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
       // Budget exceeded — show upgrade modal instead of an error message
       if (res.status === 402 && data.error === "BUDGET_EXCEEDED") {
-        setBudgetInfo({ usedTokens: data.usedTokens, budgetTokens: data.budgetTokens });
+        setBudgetInfo({ usedTokens: data.usedTokens ?? 0, budgetTokens: data.budgetTokens ?? 0 });
         setShowBuyCredits(true);
         setIsLoading(false);
         return;
