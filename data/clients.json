@@ -61,7 +61,7 @@
     "name": "Josephs Hedges & Garden's",
     "domain": "https://www.jhag.co.nz/",
     "email": "joseph@jhag.co.nz",
-    "password": "$2b$10$hjAyFTTfpY2dow8wyhmIbOUzg13R48gFpbvz0VpoS2YysES9F2Xx.",
+    "password": "$2b$10$/OPDFs8CqADlMEmhrDFNpeTlDy1cfa4vvVOJBOqrSckpnjhVBcfZi",
     "githubRepo": "https://github.com/cambrewitt-ship-it/jhag-website",
     "githubBranch": "main",
     "pages": [
@@ -70,6 +70,6 @@
         "filename": "index.html"
       }
     ],
-    "plainPassword": "123"
+    "plainPassword": "321"
   }
 ]
