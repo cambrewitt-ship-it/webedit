@@ -8,12 +8,30 @@
     "githubRepo": "cambrewitt-ship-it/oneonethree-website",
     "githubBranch": "main",
     "pages": [
-      { "label": "Home", "filename": "index.html" },
-      { "label": "Services", "filename": "services.html" },
-      { "label": "About", "filename": "about.html" },
-      { "label": "Product", "filename": "product.html" },
-      { "label": "Contact", "filename": "contact.html" },
-      { "label": "Google Tags", "filename": "google-tags.html" }
+      {
+        "label": "Home",
+        "filename": "index.html"
+      },
+      {
+        "label": "Services",
+        "filename": "services.html"
+      },
+      {
+        "label": "About",
+        "filename": "about.html"
+      },
+      {
+        "label": "Product",
+        "filename": "product.html"
+      },
+      {
+        "label": "Contact",
+        "filename": "contact.html"
+      },
+      {
+        "label": "Google Tags",
+        "filename": "google-tags.html"
+      }
     ]
   },
   {
@@ -24,9 +42,33 @@
     "githubRepo": "oneone113/wellington-plumbing",
     "githubBranch": "main",
     "pages": [
-      { "label": "Home", "filename": "index.html" },
-      { "label": "Services", "filename": "services.html" },
-      { "label": "Contact", "filename": "contact.html" }
+      {
+        "label": "Home",
+        "filename": "index.html"
+      },
+      {
+        "label": "Services",
+        "filename": "services.html"
+      },
+      {
+        "label": "Contact",
+        "filename": "contact.html"
+      }
+    ]
+  },
+  {
+    "id": "josephs-hedges-garden-s",
+    "name": "Josephs Hedges & Garden's",
+    "domain": "https://www.jhag.co.nz/",
+    "email": "joseph@jhag.co.nz",
+    "password": "$2b$10$9AfbNRBu/vXuSOn3oGG/KekAE0of358RkCpjSPCyE1qFmb1gbQIr.",
+    "githubRepo": "https://github.com/cambrewitt-ship-it/jhag-website",
+    "githubBranch": "main",
+    "pages": [
+      {
+        "label": "Home",
+        "filename": "index.html"
+      }
     ]
   }
 ]
