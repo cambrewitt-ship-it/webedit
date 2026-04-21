@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, use, useRef } from "react";
 import JSZip from "jszip";
-import { getClient, Page } from "@/config/clients";
+import { Client, Page } from "@/config/clients";
 import PasswordGate from "@/components/PasswordGate";
 import ChatPanel from "@/components/ChatPanel";
 import PreviewPanel, { SelectedElement } from "@/components/PreviewPanel";
@@ -84,10 +84,13 @@ function embedAssets(
   return html;
 }
 
+type ClientConfig = Omit<Client, "password" | "plainPassword">;
+
 export default function EditorPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = use(params);
-  const client = getClient(clientId);
 
+  const [clientConfig, setClientConfig] = useState<ClientConfig | null>(null);
+  const [clientNotFound, setClientNotFound] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -95,13 +98,13 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // Which pages are available (either from client config or from an uploaded ZIP)
   const [sessionPages, setSessionPages] = useState<Page[] | null>(null);
-  const activePagesConfig = sessionPages ?? client?.pages ?? [];
+  const activePagesConfig = sessionPages ?? clientConfig?.pages ?? [];
 
   // Map of filename → html for ALL pages in the session
   const [htmlMap, setHtmlMap] = useState<Record<string, string>>({});
   const [savedHtmlMap, setSavedHtmlMap] = useState<Record<string, string>>({});
 
-  const [activePage, setActivePage] = useState(client?.pages[0]?.filename ?? "index.html");
+  const [activePage, setActivePage] = useState("index.html");
   const [isPlaceholder, setIsPlaceholder] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
@@ -210,6 +213,24 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     setHtmlMap((prev) => ({ ...prev, [activePage]: html }));
   }
 
+  // ---------- Client config ----------
+
+  useEffect(() => {
+    fetch(`/api/client-info?clientId=${clientId}`)
+      .then((r) => {
+        if (r.status === 404) { setClientNotFound(true); return null; }
+        return r.ok ? r.json() : null;
+      })
+      .then((data) => {
+        if (data) {
+          setClientConfig(data);
+          setActivePage(data.pages[0]?.filename ?? "index.html");
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ---------- Auth ----------
 
   // Detect Stripe payment success redirect
@@ -293,13 +314,15 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     }
   }, [clientId]);
 
-  // Load initial page after auth
+  // Load initial page after auth — runs when both auth and client config are ready
+  const hasFetchedInitial = useRef(false);
   useEffect(() => {
-    if (isAuthenticated && client) {
-      fetchPage(client.pages[0].filename);
+    if (isAuthenticated && clientConfig && !hasFetchedInitial.current) {
+      hasFetchedInitial.current = true;
+      fetchPage(clientConfig.pages[0].filename);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, clientConfig]);
 
   // ---------- File upload handlers ----------
 
@@ -406,7 +429,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     setSessionPages(null);
     setHtmlMap({});
     setSavedHtmlMap({});
-    setActivePage(client?.pages[0]?.filename ?? "index.html");
+    setActivePage(clientConfig?.pages[0]?.filename ?? "index.html");
     setIsPlaceholder(true);
     setMessages([]);
     setPushSuccess(false);
@@ -594,7 +617,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
 
   // ---------- Render ----------
 
-  if (!client) {
+  if (clientNotFound) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -606,14 +629,14 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     );
   }
 
-  if (checkingSession) {
+  if (checkingSession || !clientConfig) {
     return null;
   }
 
   if (!isAuthenticated) {
     return (
       <PasswordGate
-        clientName={client.name}
+        clientName={clientConfig.name}
         onSuccess={handlePasswordSubmit}
         externalError={authError ? "Incorrect password. Please try again." : undefined}
       />
@@ -629,12 +652,12 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 whitespace-nowrap">
-            {client.resellerBrandName ? (
+            {clientConfig.resellerBrandName ? (
               <>
-                {client.resellerBrandLogo ? (
-                  <img src={client.resellerBrandLogo} alt={client.resellerBrandName} className="h-8 w-auto object-contain" />
+                {clientConfig.resellerBrandLogo ? (
+                  <img src={clientConfig.resellerBrandLogo} alt={clientConfig.resellerBrandName} className="h-8 w-auto object-contain" />
                 ) : (
-                  <span className="text-base font-bold text-white tracking-wide">{client.resellerBrandName}</span>
+                  <span className="text-base font-bold text-white tracking-wide">{clientConfig.resellerBrandName}</span>
                 )}
               </>
             ) : (
@@ -653,7 +676,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 shadow-sm shadow-green-400/50" />
-            <span className="text-sm font-medium text-white/90">{client.name}</span>
+            <span className="text-sm font-medium text-white/90">{clientConfig.name}</span>
           </div>
         </div>
 
@@ -786,7 +809,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
           <PreviewPanel
             html={currentHtml}
             isPlaceholder={isPlaceholder}
-            domain={client.domain}
+            domain={clientConfig.domain}
             pages={activePagesConfig}
             activePage={activePage}
             onPageChange={handlePageChange}

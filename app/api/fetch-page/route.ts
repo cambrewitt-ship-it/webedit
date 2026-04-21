@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
-import { getClient } from "@/config/clients";
+import { Client } from "@/config/clients";
 import { sessionOptions, SessionData } from "@/lib/session";
+import { readJsonFile } from "@/lib/github";
+
+const CLIENTS_FILE = "data/clients.json";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +19,8 @@ export async function POST(request: NextRequest) {
 
     // Clients can only fetch pages for their own account
     const clientId = session.clientId;
-    const client = getClient(clientId);
+    const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
+    const client = clientsFile?.data.find((c) => c.id === clientId);
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
