@@ -61,7 +61,7 @@ export async function GET() {
   const usageFile = await readJsonFile<UsageEntry[]>(USAGE_FILE);
   const usage = usageFile?.data ?? [];
 
-  // Never send password hashes to the frontend
+  // Strip bcrypt hash but keep plainPassword for admin display
   const sanitized = clientsFile.data.map(({ password: _pw, ...c }) => c);
   return NextResponse.json({ clients: sanitized, usage });
 }
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
     id, name, domain,
     ...(email ? { email } : {}),
     password: passwordHash,
+    plainPassword: password,
     githubRepo,
     githubBranch: githubBranch ?? "main",
     pages: pages!,
@@ -125,7 +126,7 @@ export async function PATCH(request: NextRequest) {
   if (idx === -1) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
   const newHash = await hashPassword(newPassword);
-  const updated = clientsFile.data.map((c) => c.id === id ? { ...c, password: newHash } : c);
+  const updated = clientsFile.data.map((c) => c.id === id ? { ...c, password: newHash, plainPassword: newPassword } : c);
   const putRes = await writeJsonFile(CLIENTS_FILE, updated, clientsFile.sha, `Reset password for client: ${id}`);
   if (!putRes.ok) {
     return NextResponse.json({ error: `GitHub write failed: ${(await putRes.text()).slice(0, 200)}` }, { status: 500 });

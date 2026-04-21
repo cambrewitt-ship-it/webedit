@@ -12,6 +12,7 @@ export interface Client {
   domain: string;
   email?: string;
   password: string;
+  plainPassword?: string;
   githubRepo: string;
   githubBranch: string;
   pages: Page[];

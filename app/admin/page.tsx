@@ -375,6 +375,11 @@ export default function AdminPage() {
                         <a href={`${appUrl}/edit/${c.id}`} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline font-mono">
                           {appUrl}/edit/{c.id}
                         </a>
+                        {c.plainPassword && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Password: <span className="font-mono text-gray-600">{c.plainPassword}</span>
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         {usageByClient[c.id] && (

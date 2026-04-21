@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
-import { getClient } from "@/config/clients";
-import { validatePassword } from "@/config/clients";
+import { Client } from "@/config/clients";
 import { sessionOptions, SessionData } from "@/lib/session";
 import { checkRateLimit, recordFailure, clearFailures } from "@/lib/ratelimit";
+import { readJsonFile } from "@/lib/github";
+
+const CLIENTS_FILE = "data/clients.json";
 
 export async function POST(request: NextRequest) {
   const ip = (request.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
@@ -19,8 +22,9 @@ export async function POST(request: NextRequest) {
 
   const { clientId, password } = await request.json();
 
-  const client = getClient(clientId);
-  const valid = client ? await validatePassword(clientId, password ?? "") : false;
+  const clientsFile = await readJsonFile<Client[]>(CLIENTS_FILE);
+  const client = clientsFile?.data.find((c) => c.id === clientId);
+  const valid = client ? await bcrypt.compare(password ?? "", client.password) : false;
 
   if (!valid) {
     recordFailure(`auth:${ip}`);
