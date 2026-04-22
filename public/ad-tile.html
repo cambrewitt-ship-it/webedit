@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080" />
+<title>Ad Tile — WebEdit</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1080px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'Satoshi', -apple-system, 'Inter', sans-serif;
+    background: #0b2d5a;
+  }
+
+  .tile {
+    width: 1080px;
+    height: 1080px;
+    position: relative;
+    background: #0b2d5a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 80px;
+  }
+
+  /* Subtle radial glow top-left */
+  .tile::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    left: -200px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(17,61,121,0.9) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Grid texture overlay */
+  .tile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Top label */
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(186,166,73,0.15);
+    border: 1px solid rgba(186,166,73,0.35);
+    border-radius: 100px;
+    padding: 10px 22px;
+    margin-bottom: 52px;
+  }
+
+  .label-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #BAA649;
+    flex-shrink: 0;
+  }
+
+  .label-text {
+    font-size: 24px;
+    font-weight: 600;
+    color: #BAA649;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Main hook */
+  .hook {
+    font-size: 88px;
+    font-weight: 800;
+    line-height: 1.0;
+    color: #ffffff;
+    letter-spacing: -0.03em;
+    margin-bottom: 44px;
+    max-width: 920px;
+  }
+
+  .hook em {
+    font-style: normal;
+    color: #BAA649;
+  }
+
+  /* Platform pills */
+  .platforms {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 64px;
+  }
+
+  .platform-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 100px;
+    padding: 12px 24px;
+  }
+
+  .platform-name {
+    font-size: 24px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    text-decoration: line-through;
+    text-decoration-color: rgba(239,68,68,0.6);
+    text-decoration-thickness: 2px;
+  }
+
+  .platform-price {
+    font-size: 22px;
+    font-weight: 600;
+    color: #ef4444;
+  }
+
+  /* Divider */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin-bottom: 56px;
+  }
+
+  /* Bottom row */
+  .bottom {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .savings-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .savings-label {
+    font-size: 22px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .savings-amount {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: #ffffff;
+  }
+
+  .savings-sub {
+    font-size: 26px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.4);
+    margin-top: 4px;
+  }
+
+  /* CTA button */
+  .cta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 20px;
+  }
+
+  .cta-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    background: #BAA649;
+    color: #0b2d5a;
+    font-size: 30px;
+    font-weight: 800;
+    padding: 28px 48px;
+    border-radius: 100px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .cta-arrow {
+    font-size: 32px;
+  }
+
+  .cta-sub {
+    font-size: 20px;
+    color: rgba(255,255,255,0.3);
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+<div class="tile">
+  <div class="content">
+
+    <div class="label">
+      <span class="label-dot"></span>
+      <span class="label-text">Free 60-second assessment</span>
+    </div>
+
+    <h1 class="hook">
+      How much are you<br>
+      <em>overpaying</em> for<br>your website?
+    </h1>
+
+    <div class="platforms">
+      <div class="platform-pill">
+        <span class="platform-name">Squarespace</span>
+        <span class="platform-price">$55/mo</span>
+      </div>
+      <div class="platform-pill">
+        <span class="platform-name">Wix</span>
+        <span class="platform-price">$46/mo</span>
+      </div>
+      <div class="platform-pill">
+        <span class="platform-name">Wix</span>
+        <span class="platform-price">$38/mo</span>
+      </div>
+      <div class="platform-pill">
+        <span class="platform-name">GoDaddy</span>
+        <span class="platform-price">$28/mo</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="bottom">
+      <div class="savings-block">
+        <span class="savings-label">NZ businesses save up to</span>
+        <span class="savings-amount">$800<span style="font-size:56px;color:rgba(255,255,255,0.5)">/yr</span></span>
+        <span class="savings-sub">switching to free hosting</span>
+      </div>
+
+      <div class="cta">
+        <div class="cta-button">
+          See How Much You Could Save
+          <span class="cta-arrow">→</span>
+        </div>
+        <span class="cta-sub">webedit.oneonethree.co.nz/assessment</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

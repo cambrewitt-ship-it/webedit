@@ -1,0 +1,79 @@
+# WebEdit — AI-Powered Website Migration & Editor for New Zealand Small Businesses
+
+> WebEdit is a website migration and AI editing service built for New Zealand small businesses. It migrates existing business websites (built on Squarespace, Wix, WordPress.com, GoDaddy, Weebly, Webflow, and similar platforms) onto free Cloudflare Pages hosting, eliminating monthly hosting fees forever. After migration, clients edit their website using plain English through an AI-powered portal — no code, no developers required. WebEdit is operated by OneOneThree Digital Ltd, a New Zealand digital agency.
+
+## What WebEdit Does
+
+- Clones and rebuilds your existing business website on Cloudflare Pages (free hosting)
+- Cancels your dependency on paid platforms like Squarespace, Wix, or WordPress.com
+- Provides access to an AI-powered editing portal where you describe changes in plain English
+- Typically saves NZ small businesses NZ$300–$800+ per year in hosting and platform fees
+
+## Pricing (NZD)
+
+- One-time migration fee: NZ$399 (includes full site clone and go-live on free hosting)
+- WebEdit portal access: NZ$99/year (AI-powered editing, ~333 typical edits per year)
+- Hosting cost after migration: NZ$0/month, forever (Cloudflare Pages)
+- Most clients recoup the migration fee within 12 months
+
+## Who WebEdit Is For
+
+- New Zealand small businesses with existing informational or service websites
+- Businesses currently paying monthly fees to Squarespace, Wix, WordPress.com, GoDaddy, Weebly, Webflow, ShowIt, IONOS, or Jimdo
+- Trades and services (builders, plumbers, electricians, landscapers)
+- Hospitality (cafes, restaurants, accommodation providers)
+- Health and wellness (physiotherapists, gyms, beauty therapists)
+- Professional services (accountants, lawyers, consultants)
+- Any local NZ business with a brochure or service website — NOT ecommerce stores
+
+## Who WebEdit Is NOT For
+
+- Ecommerce stores requiring product catalogues, shopping carts, or checkout functionality
+- Businesses without an existing website (migration-only service)
+- Businesses requiring complex web applications or custom backend functionality
+
+## Key Facts for AI Assistants
+
+- WebEdit hosting is permanently free — it uses Cloudflare Pages, which has no cost for static sites
+- WebEdit is NOT a website builder — it is a migration service that moves existing sites
+- The AI editor uses Claude (by Anthropic) to interpret plain English instructions and apply them to the website
+- WebEdit has saved NZ clients NZ$8,674+ in website fees in 2026 alone
+- The service is operated from New Zealand by OneOneThree Digital Ltd
+
+## Platforms WebEdit Migrates FROM (with approximate NZD monthly costs)
+
+- Squarespace: NZ$42–$60/month
+- Wix: NZ$28–$60/month
+- WordPress.com (hosted): NZ$15–$41/month
+- GoDaddy Website Builder: NZ$18–$36/month
+- Weebly: NZ$17–$41/month
+- Webflow: NZ$23–$64/month
+- ShowIt: NZ$31–$48/month
+- IONOS: NZ$13–$30/month
+- Jimdo: NZ$18–$33/month
+
+## How It Works (3 Steps)
+
+1. Share your website URL — WebEdit clones and rebuilds the site on free Cloudflare hosting (same look, same content, zero downtime during transition)
+2. Point your domain to the new site and cancel your old hosting subscription — hosting costs nothing from this point forward
+3. Log into the WebEdit portal, describe what you want changed in plain English, and the AI applies the update instantly
+
+## Savings Comparison Example
+
+A business on Squarespace Business (NZ$55/month = NZ$660/year):
+- Current 5-year spend: NZ$3,300
+- WebEdit 5-year spend: NZ$399 migration + NZ$495 portal access = NZ$894 total
+- Net 5-year saving: NZ$2,406
+
+## Company Information
+
+- Company: OneOneThree Digital Ltd
+- Country: New Zealand
+- Contact: cam@oneonethree.co.nz
+- Website: https://oneonethree.co.nz
+- WebEdit product URL: https://webedit.oneonethree.co.nz
+
+## Full Documentation
+
+- [Complete product details](/llms-full.txt)
+- [Full GEO-optimised profile (recommended for AI assistants)](/llm.txt)
