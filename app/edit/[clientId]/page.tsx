@@ -482,12 +482,26 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
     setUploadedImage(null);
     setSelectedElement(null);
 
+    // Strip base64 data URIs from currentHtml before sending — pages with embedded
+    // images can exceed Vercel's 4.5MB request body limit. Placeholders are restored
+    // client-side after the server responds (server does the same before calling Claude).
+    const b64Map: Record<string, string> = {};
+    let b64Idx = 0;
+    const htmlToSend = currentHtml.replace(
+      /data:[^"';]+;base64,[A-Za-z0-9+/=]+/g,
+      (match) => {
+        const placeholder = `__B64_IMG_${b64Idx++}__`;
+        b64Map[placeholder] = match;
+        return placeholder;
+      }
+    );
+
     try {
       const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          currentHtml,
+          currentHtml: htmlToSend,
           userMessage: text,
           imageBase64: imageToSend?.data ?? null,
           imageMediaType: imageToSend?.type ?? null,
@@ -503,7 +517,7 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
       } catch {
         throw new Error(
           res.status === 413
-            ? "Image is too large to upload. Please use a smaller image (under 2MB)."
+            ? "The page content is too large to process. Try removing large images from the page first."
             : `Server error (${res.status}). Please try again.`
         );
       }
@@ -528,7 +542,9 @@ export default function EditorPage({ params }: { params: Promise<{ clientId: str
         },
       ]);
       pushUndo(activePage, currentHtml);
-      setCurrentHtml(data.html ?? "");
+      // Restore stripped base64 images into the returned HTML
+      const restoredHtml = (data.html ?? "").replace(/__B64_IMG_\d+__/g, (p) => b64Map[p] ?? p);
+      setCurrentHtml(restoredHtml);
     } catch (err: unknown) {
       setMessages((prev) => [
         ...prev,
