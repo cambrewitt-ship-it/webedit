@@ -4,7 +4,7 @@
     "name": "OneOneThree Digital",
     "domain": "oneonethree.co.nz",
     "email": "cam@oneonethree.co.nz",
-    "password": "$2b$10$uAsn.7QMFWWWNUtfWNxPIuKTHKA9Q8H15.Gad6QdJnJ1v1dVQxFV2",
+    "password": "$2b$10$TZrdk6MzM5Qe3Dr/IP7laesBEodDQCVXGII698qWFCWq3/HUWP.d2",
     "githubRepo": "cambrewitt-ship-it/oneonethree-website",
     "githubBranch": "main",
     "pages": [
@@ -32,7 +32,8 @@
         "label": "Google Tags",
         "filename": "google-tags.html"
       }
-    ]
+    ],
+    "plainPassword": "password123"
   },
   {
     "id": "wellington-plumbing",
