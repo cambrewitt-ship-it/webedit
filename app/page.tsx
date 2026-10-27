@@ -371,6 +371,16 @@ export default function Home() {
                 </ul>
               </div>
 
+              {/* Our products */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">OneOneThree Digital</p>
+                <ul className="space-y-2">
+                  <li><a href="https://www.oneonethree.co.nz/" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">OneOneThree Digital</a></li>
+                  <li><a href="https://www.planpulse.nz/" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">PlanPulse</a></li>
+                  <li><a href="https://content-manager.io/" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">Content Manager</a></li>
+                </ul>
+              </div>
+
               {/* Contact */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">Get in Touch</p>
